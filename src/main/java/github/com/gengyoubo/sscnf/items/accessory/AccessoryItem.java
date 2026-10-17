@@ -36,7 +36,7 @@ public abstract class AccessoryItem extends Item {
     }
 
     public boolean canUnequip(ItemStack stack, LivingEntity entity, SlotData slotData) {
-        return !EnchantmentHelper.has(stack, net.minecraft.tags.EnchantmentTags.PREVENTS_ARMOR_CHANGE);
+        return !EnchantmentHelper.has(stack, net.minecraft.world.item.enchantment.EnchantmentEffectComponents.PREVENT_ARMOR_CHANGE);
     }
 
     public void onBreak(ItemStack stack, LivingEntity entity, SlotData slotData) {

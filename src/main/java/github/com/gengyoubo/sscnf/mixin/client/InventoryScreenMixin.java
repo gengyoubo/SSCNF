@@ -25,9 +25,9 @@ public abstract class InventoryScreenMixin {
 
     // 6 参主入口。renderEntityInInventoryFollowsMouse 最终也会调用这个重载，
     // 因此只在这里包住状态，避免两个注入互相覆盖保存值。
-    @Inject(method = "renderEntityInInventory(Lnet/minecraft/client/gui/GuiGraphics;IIILorg/joml/Quaternionf;Lorg/joml/Quaternionf;Lnet/minecraft/world/entity/LivingEntity;)V",
+    @Inject(method = "renderEntityInInventory(Lnet/minecraft/client/gui/GuiGraphics;FFFLorg/joml/Vector3f;Lorg/joml/Quaternionf;Lorg/joml/Quaternionf;Lnet/minecraft/world/entity/LivingEntity;)V",
             at = @At("HEAD"))
-    private static void ssc$storePrevBodyYaw(GuiGraphics graphics, int x, int y, int scale,
+    private static void ssc$storePrevBodyYaw(GuiGraphics graphics, float x, float y, float scale, org.joml.Vector3f translation,
                                               Quaternionf pose, Quaternionf cameraOrientation,
                                               LivingEntity entity, CallbackInfo ci) {
         if (entity == null) {
@@ -39,9 +39,9 @@ public abstract class InventoryScreenMixin {
         entity.yBodyRotO = entity.yBodyRot;
     }
 
-    @Inject(method = "renderEntityInInventory(Lnet/minecraft/client/gui/GuiGraphics;IIILorg/joml/Quaternionf;Lorg/joml/Quaternionf;Lnet/minecraft/world/entity/LivingEntity;)V",
+    @Inject(method = "renderEntityInInventory(Lnet/minecraft/client/gui/GuiGraphics;FFFLorg/joml/Vector3f;Lorg/joml/Quaternionf;Lorg/joml/Quaternionf;Lnet/minecraft/world/entity/LivingEntity;)V",
             at = @At("RETURN"))
-    private static void ssc$restorePrevBodyYaw(GuiGraphics graphics, int x, int y, int scale,
+    private static void ssc$restorePrevBodyYaw(GuiGraphics graphics, float x, float y, float scale, org.joml.Vector3f translation,
                                                Quaternionf pose, Quaternionf cameraOrientation,
                                                LivingEntity entity, CallbackInfo ci) {
         if (ssc$entity != null) {

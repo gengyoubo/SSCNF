@@ -1091,7 +1091,6 @@ public final class FormPowerEvents {
         if (isDryLandForCustomWaterBreathing(player)
                 || player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)) {
             event.setRefillAirAmount(0);
-            event.setRefillAirAmount(0);
         }
     }
 

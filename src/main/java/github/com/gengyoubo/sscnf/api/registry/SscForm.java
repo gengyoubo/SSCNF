@@ -178,6 +178,9 @@ public class SscForm {
 
     public void validateStage(FormDefinition definition) {
         int maximum = maximumStage();
+        // Human states precede creature progression and use explicit sentinel stages.
+        if (id().equals(github.com.gengyoubo.sscnf.form.FormRegistry.ORIGINAL_BEFORE_ENABLE) && definition.stage() == -1
+                || id().equals(github.com.gengyoubo.sscnf.form.FormRegistry.ORIGINAL_SHIFTER) && definition.stage() == 0) return;
         if (maximum < 1 || definition.stage() < 1 || definition.stage() > maximum) {
             throw new IllegalStateException("SSC Java form '" + id() + "' resolves to stage " + definition.stage()
                     + ", outside its allowed 1-" + maximum + " range");

@@ -17,11 +17,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** Apoli suppresses game-event emission, leaving the audible footstep intact. */
 @Mixin(ServerLevel.class)
 public abstract class ServerLevelGameEventMixin {
-    @Inject(method = "gameEvent(Lnet/minecraft/world/level/gameevent/GameEvent;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/level/gameevent/GameEvent$Context;)V",
+    @Inject(method = "gameEvent(Lnet/minecraft/core/Holder;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/level/gameevent/GameEvent$Context;)V",
             at = @At("HEAD"), cancellable = true)
-    private void ssc$preventGameEvent(GameEvent event, Vec3 position, GameEvent.Context context, CallbackInfo ci) {
+    private void ssc$preventGameEvent(net.minecraft.core.Holder<GameEvent> event, Vec3 position, GameEvent.Context context, CallbackInfo ci) {
         if (!(context.sourceEntity() instanceof Player player)) return;
-        String eventId = BuiltInRegistries.GAME_EVENT.getKey(event).toString();
+        String eventId = BuiltInRegistries.GAME_EVENT.getKey(event.value()).toString();
         final boolean[] prevented = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"shape_shifter_curse:prevent_game_event".equals(FormPowerRegistry.typeOf(power))

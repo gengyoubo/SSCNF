@@ -35,29 +35,26 @@ public final class CombatLootEvents {
         return result[0];
     }
 
-    /** Called from Block.dropResources so ordinary breaking and post-break behavior remain intact. */
-    public static boolean replaceBlockDrops(BlockState state, ServerLevel level, BlockPos pos,
-                                            Player player, ItemStack tool, boolean dropXp) {
+    @net.neoforged.bus.api.SubscribeEvent
+    public static void replaceBlockDrops(net.neoforged.neoforge.event.level.BlockDropsEvent event) {
+        if (!(event.getBreaker() instanceof Player player)) return;
         final boolean[] matched = {false};
-        final boolean[] replaced = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (matched[0] || !"shape-shifter-curse:modify_block_drop".equals(FormPowerRegistry.typeOf(power))
                     || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
-                    || !matchesBlock(state, power.getAsJsonObject("block_condition"))) return;
+                    || !matchesBlock(event.getState(), power.getAsJsonObject("block_condition"))) return;
             matched[0] = true;
             if (player.getRandom().nextFloat() >= Math.max(0.0F, Math.min(1.0F,
                     FormPowerRuntime.floatValue(power, "chance", 0.0F)))) return;
+            event.getDrops().clear();
             if (power.has("target_item_stack_list") && power.get("target_item_stack_list").isJsonArray()) {
                 for (var element : power.getAsJsonArray("target_item_stack_list")) {
                     if (!element.isJsonObject()) continue;
                     ItemStack stack = stackFromJson(element.getAsJsonObject());
-                    if (!stack.isEmpty()) Block.popResource(level, pos, stack);
+                    if (!stack.isEmpty()) event.getDrops().add(new net.minecraft.world.entity.item.ItemEntity(event.getLevel(), event.getPos().getX() + 0.5D, event.getPos().getY() + 0.5D, event.getPos().getZ() + 0.5D, stack));
                 }
             }
-            state.spawnAfterBreak(level, pos, tool, dropXp);
-            replaced[0] = true;
         });
-        return replaced[0];
     }
 
     private static boolean matchesBlock(net.minecraft.world.level.block.state.BlockState state, com.google.gson.JsonObject condition) {

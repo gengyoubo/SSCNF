@@ -180,7 +180,6 @@ public final class DietInheritanceService {
                 for (Ingredient ingredient : recipe.getIngredients()) {
                     // Empty slots of shaped recipes are not ingredients.
                     if (ingredient == Ingredient.EMPTY) continue;
-                    ingredient.invalidate(); // Clear even a pre-cached item list with no stacking IDs yet.
                     ingredient.getStackingIds();
                     List<String> alternatives = java.util.Arrays.stream(ingredient.getItems())
                             .filter(stack -> !stack.isEmpty())

@@ -13,6 +13,7 @@ neoForge {
     runs {
         client { client() }
         server { server(); programArgument '--nogui' }
+        smokeServer { server(); gameDirectory = file('build/smoke-server'); programArgument '--nogui' }
     }
     mods { "${mod_id}" { sourceSet(sourceSets.main) } }
 }

@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(FogRenderer.class)
 public abstract class NightVisionFogMixin {
     @Redirect(method = "setupColor", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/world/entity/LivingEntity;hasEffect(Lnet/minecraft/world/effect/MobEffect;)Z",
+            target = "Lnet/minecraft/world/entity/LivingEntity;hasEffect(Lnet/minecraft/core/Holder;)Z",
             ordinal = 0))
     private static boolean ssc$nightVisionFog(LivingEntity entity, net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect) {
         if (entity instanceof Player player && effect == MobEffects.NIGHT_VISION

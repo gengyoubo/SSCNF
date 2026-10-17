@@ -33,7 +33,7 @@ public abstract class SplashPotionPowerMixin {
     }
 
     @Inject(method = "applySplash", at = @At("HEAD"))
-    private void ssc$onSplash(List<MobEffectInstance> effects, Entity directHit, CallbackInfo ci) {
+    private void ssc$onSplash(Iterable<MobEffectInstance> effects, Entity directHit, CallbackInfo ci) {
         ThrownPotion potion = (ThrownPotion) (Object) this;
         if (potion.level().isClientSide) return;
         for (LivingEntity living : potion.level().getEntitiesOfClass(LivingEntity.class,
@@ -45,8 +45,8 @@ public abstract class SplashPotionPowerMixin {
     }
 
     @Inject(method = "makeAreaOfEffectCloud", at = @At("HEAD"))
-    private void ssc$onLingeringSplash(ItemStack stack, Potion potionType, CallbackInfo ci) {
-        if (!stack.getOrDefault(net.minecraft.core.component.DataComponents.POTION_CONTENTS, net.minecraft.world.item.alchemy.PotionContents.EMPTY).customEffects().isEmpty()) return;
+    private void ssc$onLingeringSplash(net.minecraft.world.item.alchemy.PotionContents contents, CallbackInfo ci) {
+        if (!contents.customEffects().isEmpty()) return;
         ThrownPotion potion = (ThrownPotion) (Object) this;
         if (potion.level().isClientSide) return;
         for (LivingEntity living : potion.level().getEntitiesOfClass(LivingEntity.class,

@@ -12,8 +12,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** The anonymous armor slot created by InventoryMenu in Minecraft 1.20.1. */
-@Mixin(targets = "net.minecraft.world.inventory.InventoryMenu$1")
+/** Applies form equipment restrictions to the native armor slot. */
+@Mixin(targets = "net.minecraft.world.inventory.ArmorSlot")
 public abstract class ArmorSlotRestrictionMixin extends Slot {
     protected ArmorSlotRestrictionMixin(Container container, int index, int x, int y) {
         super(container, index, x, y);

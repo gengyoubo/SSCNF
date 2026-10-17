@@ -128,21 +128,6 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         ssc$virtualShieldBlocked = false;
     }
 
-    /** Forge replaces vanilla's baseTick air update with ForgeHooks.onLivingBreathe. */
-    @ModifyArg(method = "baseTick",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraftforge/common/ForgeHooks;onLivingBreathe(Lnet/minecraft/world/entity/LivingEntity;II)V",
-                    remap = false), index = 2, require = 1)
-    private int ssc$suppressDryLandAirRefill(int refill) {
-        LivingEntity self = (LivingEntity) (Object) this;
-        if (self instanceof Player player
-                && FormPowerEvents.hasCustomWaterBreathing(player)
-                && FormPowerEvents.isDryLandForCustomWaterBreathing(player)) {
-            return 0;
-        }
-        return refill;
-    }
-
     @Inject(method = "canBreatheUnderwater", at = @At("HEAD"), cancellable = true)
     private void ssc$canBreatheUnderwaterWithCustomPower(CallbackInfoReturnable<Boolean> cir) {
         LivingEntity self = (LivingEntity) (Object) this;

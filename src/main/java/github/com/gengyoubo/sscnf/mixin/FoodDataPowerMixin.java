@@ -15,16 +15,15 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /** Applies Apoli modify_food before vanilla clamps hunger and saturation. */
-@Mixin(FoodData.class)
+@Mixin(Player.class)
 public abstract class FoodDataPowerMixin {
-    @Redirect(method = "eat(Lnet/minecraft/world/item/Item;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/LivingEntity;)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/food/FoodData;eat(IF)V"))
-    private void ssc$modifyFood(FoodData foodData, int food, float saturation,
-                                Item item, ItemStack stack, LivingEntity entity) {
-        if (!(entity instanceof Player player)) {
-            foodData.eat(food, saturation);
-            return;
-        }
+    @Redirect(method = "eat(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/food/FoodProperties;)Lnet/minecraft/world/item/ItemStack;",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/food/FoodData;eat(Lnet/minecraft/world/food/FoodProperties;)V"))
+    private void ssc$modifyFood(FoodData foodData, net.minecraft.world.food.FoodProperties properties,
+                               net.minecraft.world.level.Level level, ItemStack stack, net.minecraft.world.food.FoodProperties original) {
+        Player player = (Player)(Object)this;
+        int food = properties.nutrition();
+        float saturation = food == 0 ? 0.0F : properties.saturation() / (food * 2.0F);
         List<JsonObject> foodModifiers = new ArrayList<>();
         List<JsonObject> saturationModifiers = new ArrayList<>();
         FormPowerRegistry.visitActive(player, (id, power) -> {

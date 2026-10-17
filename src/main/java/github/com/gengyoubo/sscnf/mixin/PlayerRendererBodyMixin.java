@@ -29,16 +29,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 // Run the SSC root after PlayerAnimator's priority-1000 root injection.
 @Mixin(value = net.minecraft.client.renderer.entity.player.PlayerRenderer.class, priority = 1100)
 public abstract class PlayerRendererBodyMixin {
-    @Inject(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
+    @Inject(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFFF)V",
             at = @At("HEAD"))
     private void ssc$scaleForm(AbstractClientPlayer player, PoseStack poseStack,
-                                float age, float bodyYaw, float partialTick, CallbackInfo ci) {
+                                float age, float bodyYaw, float partialTick, float scale, CallbackInfo ci) {
         FormDefinition form = FormManager.current(player);
         if (form.hasFlag("special_form") || form.stage() > 0) {
             poseStack.scale(form.widthScale(), form.heightScale(), form.widthScale());
         }
     }
-    @Redirect(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
+    @Redirect(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFFF)V",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/player/AbstractClientPlayer;getSwimAmount(F)F"))
     private float ssc$matchFormSwimRotation(AbstractClientPlayer player, float partialTick) {
@@ -56,10 +56,10 @@ public abstract class PlayerRendererBodyMixin {
         return player.getSwimAmount(partialTick);
     }
 
-    @Inject(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
+    @Inject(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFFF)V",
             at = @At("RETURN"))
     private void ssc$applyBodyTransform(AbstractClientPlayer entity, PoseStack poseStack,
-                                        float animationProgress, float bodyYaw, float partialTick,
+                                        float animationProgress, float bodyYaw, float partialTick, float scale,
                                         CallbackInfo ci) {
         FormDefinition form = FormManager.current(entity);
         if (!form.hasFlag("special_form") && form.stage() <= 0) {

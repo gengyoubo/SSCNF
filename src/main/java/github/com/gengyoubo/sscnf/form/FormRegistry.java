@@ -74,7 +74,7 @@ public final class FormRegistry {
                 case 1 -> Set.of("starter_form");
                 case 3 -> Set.of("inhibitor_resist", "lock_instinct", "cursed_moon_final_form", "catalyst_resist", "can_transform_to_final_form");
                 case 4 -> Set.of("final_form", "inhibitor_immune", "no_instinct", "no_cursed_moon_effect");
-                default -> Set.of("");
+                default -> Set.of();
             });
             if (path.equals("spider") && tier >= 3) {
                 flags.add("night_vision");
