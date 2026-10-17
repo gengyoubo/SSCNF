@@ -16,6 +16,10 @@ neoForge {
         smokeServer { server(); gameDirectory = file('build/smoke-server'); programArgument '--nogui' }
     }
     mods { "${mod_id}" { sourceSet(sourceSets.main) } }
+    unitTest {
+        enable()
+        testedMod = mods."${mod_id}"
+    }
 }
 repositories {
     mavenCentral()
@@ -29,7 +33,10 @@ dependencies {
     runtimeOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}"
     compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
     compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+test { useJUnitPlatform() }
 processResources {
     def props = [version: project.version, mod_id: mod_id, mod_name: mod_name]
     inputs.properties props

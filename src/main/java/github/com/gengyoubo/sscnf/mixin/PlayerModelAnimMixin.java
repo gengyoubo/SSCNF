@@ -7,9 +7,11 @@ import net.minecraft.world.entity.player.Player;
 import github.com.gengyoubo.sscnf.client.render.FormClientRenderEvents;
 import github.com.gengyoubo.sscnf.client.render.FormGeoAnimatable;
 import github.com.gengyoubo.sscnf.client.render.FormGeoRenderer;
+import github.com.gengyoubo.sscnf.client.render.PlayerModelPose;
 import github.com.gengyoubo.sscnf.form.FormDefinition;
 import github.com.gengyoubo.sscnf.form.FormManager;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -25,6 +27,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(PlayerModel.class)
 public abstract class PlayerModelAnimMixin {
+    @Unique
+    private PlayerModelPose ssc$poseBeforeForm;
+
+    @Inject(method = "setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V", at = @At("HEAD"))
+    private void ssc$restoreVanillaPose(LivingEntity entity, float limbSwing, float limbSwingAmount,
+                                       float ageInTicks, float netHeadYaw, float headPitch,
+                                       CallbackInfo ci) {
+        // Models are reused across forms and players; vanilla does not reset every pivot.
+        if (ssc$poseBeforeForm != null) {
+            ssc$poseBeforeForm.apply((PlayerModel<?>)(Object) this);
+            ssc$poseBeforeForm = null;
+        }
+    }
+
     @Inject(method = "setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/model/HumanoidModel;setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V",
@@ -50,6 +66,10 @@ public abstract class PlayerModelAnimMixin {
             return;
         }
         PlayerModel<?> model = (PlayerModel<?>)(Object) this;
+        if (!animatable.isPreparingVanillaPlayerPose() && !animatable.hasPreparedPose(player)) {
+            return;
+        }
+        ssc$poseBeforeForm = PlayerModelPose.capture(model);
         float partialTick = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
         if (animatable.isPreparingVanillaPlayerPose()) {
             animatable.prepareSelection(player, model);
