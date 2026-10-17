@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:totem_of_undying",
+    "minecraft:shield",
+    "shape-shifter-curse:venom_spindle"
+  ]
+}

@@ -1,0 +1,86 @@
+package github.com.gengyoubo.sscnf.mixin;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+import net.minecraft.client.player.AbstractClientPlayer;
+import github.com.gengyoubo.sscnf.client.render.BedrockAnimationPlayer;
+import github.com.gengyoubo.sscnf.client.render.FormClientRenderEvents;
+import github.com.gengyoubo.sscnf.client.render.FormGeoAnimatable;
+import github.com.gengyoubo.sscnf.client.render.FormGeoRenderer;
+import github.com.gengyoubo.sscnf.form.FormDefinition;
+import github.com.gengyoubo.sscnf.form.FormManager;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+/**
+ * Mirrors PAL's {@code PlayerRendererMixin#applyBodyTransforms}: the {@code body} clip
+ * channel is a renderer-level transform that must sit inside vanilla's own matrix
+ * stack. The Pre-pass copy only feeds the Geo overlay; vanilla layers (armor via
+ * {@code copyPropertiesTo}, held items, capes) never see it, so armor keeps an
+ * upright pose while the form prostrates. Applying the stored transform here puts
+ * every vanilla layer under the same root motion, exactly like Fabric.
+ *
+ * <p>Player renderers only exist on the client, so this mixin never activates on a
+ * dedicated server.</p>
+ */
+// Run the SSC root after PlayerAnimator's priority-1000 root injection.
+@Mixin(value = net.minecraft.client.renderer.entity.player.PlayerRenderer.class, priority = 1100)
+public abstract class PlayerRendererBodyMixin {
+    @Inject(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
+            at = @At("HEAD"))
+    private void ssc$scaleForm(AbstractClientPlayer player, PoseStack poseStack,
+                                float age, float bodyYaw, float partialTick, CallbackInfo ci) {
+        FormDefinition form = FormManager.current(player);
+        if (form.hasFlag("special_form") || form.stage() > 0) {
+            poseStack.scale(form.widthScale(), form.heightScale(), form.widthScale());
+        }
+    }
+    @Redirect(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/player/AbstractClientPlayer;getSwimAmount(F)F"))
+    private float ssc$matchFormSwimRotation(AbstractClientPlayer player, float partialTick) {
+        FormDefinition form = FormManager.current(player);
+        if (form.hasFlag("special_form") || form.stage() > 0) {
+            FormGeoRenderer renderer = FormClientRenderEvents.rendererFor(form);
+            if (renderer != null) {
+                FormGeoAnimatable animation = renderer.getAnimatable();
+                if (animation.hasPreparedPose(player) && !animation.hasSafeRenderState()
+                        && animation.suppressesVanillaSwimRotation()) {
+                    return 0.0F;
+                }
+            }
+        }
+        return player.getSwimAmount(partialTick);
+    }
+
+    @Inject(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
+            at = @At("RETURN"))
+    private void ssc$applyBodyTransform(AbstractClientPlayer entity, PoseStack poseStack,
+                                        float animationProgress, float bodyYaw, float partialTick,
+                                        CallbackInfo ci) {
+        FormDefinition form = FormManager.current(entity);
+        if (!form.hasFlag("special_form") && form.stage() <= 0) {
+            return;
+        }
+        FormGeoRenderer renderer = FormClientRenderEvents.rendererFor(form);
+        if (renderer == null) {
+            return;
+        }
+        FormGeoAnimatable animatable = renderer.getAnimatable();
+        if (animatable == null || !animatable.hasPreparedPose(entity) || animatable.hasSafeRenderState()) {
+            return;
+        }
+        BedrockAnimationPlayer.BodyTransform transform = animatable.getBodyTransform();
+        if (transform == null || transform.isIdentity()) {
+            return;
+        }
+        poseStack.translate(transform.x(), transform.y() + 0.7F, transform.z());
+        poseStack.mulPose(Axis.ZP.rotation(transform.roll()));
+        poseStack.mulPose(Axis.YP.rotation(transform.yaw()));
+        poseStack.mulPose(Axis.XP.rotation(transform.pitch()));
+        poseStack.translate(0.0D, -0.7D, 0.0D);
+    }
+}

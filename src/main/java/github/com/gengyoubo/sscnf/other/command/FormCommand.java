@@ -1,0 +1,150 @@
+package github.com.gengyoubo.sscnf.other.command;
+
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import github.com.gengyoubo.sscnf.ShapeShifterCurseNeoForge;
+import github.com.gengyoubo.sscnf.form.FormDefinition;
+import github.com.gengyoubo.sscnf.form.FormManager;
+import github.com.gengyoubo.sscnf.form.FormRegistry;
+import github.com.gengyoubo.sscnf.power.FormPowerRegistry;
+import github.com.gengyoubo.sscnf.power.FormPowerEvents;
+import github.com.gengyoubo.sscnf.other.cursedmoon.CursedMoonService;
+
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+
+import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+
+import static com.mojang.brigadier.Command.SINGLE_SUCCESS;
+
+@net.neoforged.fml.common.EventBusSubscriber(modid = ShapeShifterCurseNeoForge.MOD_ID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.GAME)
+public final class FormCommand {
+    private FormCommand() {
+    }
+
+    @SubscribeEvent
+    public static void register(RegisterCommandsEvent event) {
+        var form = Commands.literal("form")
+                .then(Commands.literal("list").executes(context -> {
+                    String forms = FormRegistry.forms().keySet().stream().map(ResourceLocation::toString)
+                            .reduce((left, right) -> left + ", " + right).orElse("<none>");
+                    context.getSource().sendSuccess(() -> Component.literal(forms), false);
+                    return SINGLE_SUCCESS;
+                }))
+                .then(Commands.literal("get").executes(context -> {
+                    FormDefinition current = FormManager.current(context.getSource().getPlayerOrException());
+                    context.getSource().sendSuccess(() -> Component.literal(
+                            current.id() + " stage=" + current.stage() + " group=" + current.groupId()), false);
+                    return SINGLE_SUCCESS;
+                }))
+                .then(Commands.literal("set").then(Commands.argument("form", ResourceLocationArgument.id())
+                        .suggests((context, builder) -> suggestForms(builder))
+                        .executes(context -> {
+                            ServerPlayer player = context.getSource().getPlayerOrException();
+                            ResourceLocation formId = ResourceLocationArgument.getId(context, "form");
+                            if (!FormManager.setForm(player, formId)) {
+                                if (FormRegistry.get(formId) == null) {
+                                    context.getSource().sendFailure(Component.literal("Unknown form: " + formId));
+                                } else {
+                                    context.getSource().sendSuccess(() -> Component.literal("Form unchanged: " + formId), false);
+                                }
+                                return 0;
+                            }
+                            context.getSource().sendSuccess(() -> Component.literal("Form set to " + formId), true);
+                            return SINGLE_SUCCESS;
+                        })))
+                .then(Commands.literal("next").executes(context -> move(context.getSource().getPlayerOrException(), true)))
+                .then(Commands.literal("previous").executes(context -> move(context.getSource().getPlayerOrException(), false)))
+                .then(stageCommand("stage", "stage"))
+                // Legacy command alias. New user-facing text and documentation use "stage".
+                .then(stageCommand("tier", "tier"));
+        var power = Commands.literal("power")
+                .then(Commands.literal("status")
+                        .executes(context -> showPowerStatus(context.getSource().getPlayerOrException(), context)))
+                .then(Commands.literal("list")
+                        .executes(context -> showPowerList(context.getSource().getPlayerOrException(), context)));
+        var cursedMoon = Commands.literal("cursed_moon")
+                .then(Commands.literal("status").executes(context -> {
+                    var level = context.getSource().getServer().overworld();
+                    context.getSource().sendSuccess(() -> Component.literal(
+                            "Cursed Moon: day=" + CursedMoonService.isCursedMoonDay(level)
+                                    + ", night=" + CursedMoonService.isInCursedMoon(level)
+                                    + ", phase=" + level.getMoonPhase()), false);
+                    return SINGLE_SUCCESS;
+                }))
+                .then(Commands.literal("force").requires(source -> source.hasPermission(2)).executes(context -> {
+                    CursedMoonService.forceTriggerCursedMoon(context.getSource().getServer().overworld());
+                    context.getSource().sendSuccess(() -> Component.literal("The next Cursed Moon was scheduled."), true);
+                    return SINGLE_SUCCESS;
+                }));
+        event.getDispatcher().register(Commands.literal("ssc").then(form).then(power).then(cursedMoon));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> stageCommand(String literal, String argument) {
+        return Commands.literal(literal).then(Commands.argument(argument, IntegerArgumentType.integer(-1, 4))
+                .executes(context -> {
+                    ServerPlayer player = context.getSource().getPlayerOrException();
+                    int stage = IntegerArgumentType.getInteger(context, argument);
+                    boolean changed = FormManager.moveToStage(player, stage);
+                    context.getSource().sendSuccess(() -> Component.literal(
+                            changed ? "Moved to stage " + stage : "No form at stage " + stage), true);
+                    return changed ? SINGLE_SUCCESS : 0;
+                }));
+    }
+
+    private static int move(ServerPlayer player, boolean next) {
+        return (next ? FormManager.next(player) : FormManager.previous(player)) ? SINGLE_SUCCESS : 0;
+    }
+
+    static int showPowerStatus(ServerPlayer player, com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> context) {
+        FormPowerRegistry.DebugInfo info = FormPowerRegistry.debug(player);
+        context.getSource().sendSuccess(() -> Component.literal("Power data: " + info.loadedPowers()
+                + " definitions, " + info.assignedForms() + " form assignments. Current " + info.currentForm()
+                + ": " + info.assignedPowers().size() + " assigned, " + info.resolvedPowers() + " resolved."), false);
+        FormPowerEvents.SwimSpeedDebug swim = FormPowerEvents.swimSpeedDebug(player);
+        String modifiers = swim.powers().stream().map(power -> power.powerId()
+                        + " [condition=" + power.conditionMet() + ", installed=" + power.installed()
+                        + ", " + power.operation() + " " + power.amount() + "]")
+                .reduce((left, right) -> left + ", " + right).orElse("<none assigned>");
+        context.getSource().sendSuccess(() -> Component.literal("SWIM_SPEED: attribute=" + swim.attributePresent()
+                + ", base=" + swim.baseValue() + ", effective=" + swim.effectiveValue()
+                + ", refreshedTick=" + swim.lastRefreshTick() + "; " + modifiers), false);
+        FormPowerEvents.MoveSpeedDebug move = FormPowerEvents.moveSpeedDebug(player);
+        String moveMods = move.powers().stream().map(power -> power.powerId()
+                        + " [condition=" + power.conditionMet() + ", installed=" + power.installed()
+                        + ", " + power.operation() + " " + power.amount() + "]")
+                .reduce((left, right) -> left + ", " + right).orElse("<none assigned>");
+        context.getSource().sendSuccess(() -> Component.literal("MOVE_SPEED: sprinting=" + move.sprinting()
+                + ", base=" + move.baseValue() + ", effective=" + move.effectiveValue()
+                + ", vanillaBoost=" + move.vanillaSprintBoost()
+                + ", refreshedTick=" + move.lastRefreshTick() + "; " + moveMods), false);
+        return SINGLE_SUCCESS;
+    }
+
+    private static int showPowerList(ServerPlayer player, com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> context) {
+        FormPowerRegistry.DebugInfo info = FormPowerRegistry.debug(player);
+        String powers = info.assignedPowers().stream().map(ResourceLocation::toString)
+                .reduce((left, right) -> left + ", " + right).orElse("<none>");
+        context.getSource().sendSuccess(() -> Component.literal(info.currentForm() + " powers: " + powers), false);
+        return SINGLE_SUCCESS;
+    }
+
+    private static CompletableFuture<Suggestions> suggestForms(SuggestionsBuilder builder) {
+        String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+        FormRegistry.forms().keySet().stream()
+                .map(ResourceLocation::toString)
+                .filter(id -> id.toLowerCase(Locale.ROOT).startsWith(remaining))
+                .forEach(builder::suggest);
+        return builder.buildFuture();
+    }
+}

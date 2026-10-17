@@ -1,0 +1,240 @@
+package github.com.gengyoubo.sscnf.mixin;
+
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.NeoForgeMod;
+import github.com.gengyoubo.sscnf.ShapeShifterCurseNeoForge;
+import github.com.gengyoubo.sscnf.other.config.SscCommonConfig;
+import github.com.gengyoubo.sscnf.form.FormBodyType;
+import github.com.gengyoubo.sscnf.form.FormManager;
+import github.com.gengyoubo.sscnf.power.FormPowerRegistry;
+import github.com.gengyoubo.sscnf.power.FormPowerEvents;
+import github.com.gengyoubo.sscnf.power.FormPowerRuntime;
+import github.com.gengyoubo.sscnf.power.MovementPowerService;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+@Mixin(Player.class)
+public abstract class PlayerEntityPoseMixin extends LivingEntity {
+    @org.spongepowered.asm.mixin.Shadow protected abstract boolean canPlayerFitWithinBlocksAndEntitiesWhen(Pose pose);
+
+
+    @Unique
+    private boolean ssc$wasSwimming;
+    @Unique
+    private boolean ssc$debugAxolotlSwimmingTravel;
+    @Unique
+    private boolean ssc$forcedCrawlActive;
+
+    protected PlayerEntityPoseMixin(EntityType<? extends LivingEntity> entityType, Level level) {
+        super(entityType, level);
+    }
+
+    /** Fabric reverses turtle helmet activation for custom water breathers. */
+    @Redirect(method = "turtleHelmetTick",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/player/Player;isEyeInFluid(Lnet/minecraft/tags/TagKey;)Z"),
+            require = 1)
+    private boolean ssc$reverseTurtleHelmetBreathing(Player player, TagKey<Fluid> fluid) {
+        boolean submerged = player.isEyeInFluid(fluid);
+        return FormPowerEvents.hasCustomWaterBreathing(player) ? !submerged : submerged;
+    }
+
+    /** Applies the Fabric swimming-state fallback at the same point vanilla updates it. */
+    @Inject(method = "updateSwimming", at = @At("HEAD"))
+    private void ssc$rememberSwimming(CallbackInfo ci) {
+        ssc$wasSwimming = this.isSwimming();
+    }
+
+    @Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V", at = @At("HEAD"))
+    private void ssc$debugSwimmingTravelStart(Vec3 input, CallbackInfo ci) {
+        Player player = (Player) (Object) this;
+        ssc$debugAxolotlSwimmingTravel = SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()
+                && MovementPowerService.hasAlwaysSprintSwimmingPower(player)
+                && (player.isInWater() || player.isSwimming());
+        if (!ssc$debugAxolotlSwimmingTravel) return;
+        ShapeShifterCurseNeoForge.LOGGER.info(
+                "[SSC-TRAVEL-DEBUG] stage=head side={} tick={} input=({}, {}, {}) xxa={} zza={} swimming={} sprinting={} pose={} touchingWater={} eyeInWater={} alwaysSprintSwimmingPower=true collisions=({}, {}) movementSpeed={} swimSpeed={} velocity={}",
+                player.level().isClientSide ? "client" : "server", player.tickCount,
+                input.x, input.y, input.z, this.xxa, this.zza, player.isSwimming(), player.isSprinting(),
+                player.getPose(), player.isInWater(), player.isEyeInFluid(FluidTags.WATER),
+                player.horizontalCollision, player.verticalCollision,
+                player.getAttributeValue(Attributes.MOVEMENT_SPEED),
+                player.getAttributeValue(NeoForgeMod.SWIM_SPEED), player.getDeltaMovement());
+    }
+
+    @Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V", at = @At("RETURN"))
+    private void ssc$debugSwimmingTravelEnd(Vec3 input, CallbackInfo ci) {
+        if (!ssc$debugAxolotlSwimmingTravel) return;
+        Player player = (Player) (Object) this;
+        ShapeShifterCurseNeoForge.LOGGER.info(
+                "[SSC-TRAVEL-DEBUG] stage=travel-return side={} tick={} input=({}, {}, {}) xxa={} zza={} swimming={} sprinting={} collisions=({}, {}) velocity={}",
+                player.level().isClientSide ? "client" : "server", player.tickCount,
+                input.x, input.y, input.z, this.xxa, this.zza, player.isSwimming(), player.isSprinting(),
+                player.horizontalCollision, player.verticalCollision, player.getDeltaMovement());
+    }
+
+    @Inject(method = "updateSwimming", at = @At("TAIL"))
+    private void ssc$forceSwimmingUnderwater(CallbackInfo ci) {
+        Player player = (Player) (Object) this;
+        if (player.isSwimming() || !MovementPowerService.hasAlwaysSprintSwimmingPower(player)
+                || player.isPassenger()) return;
+
+        // Match Fabric's EntityMixin: entering swimming requires full
+        // submersion; an already swimming player may remain swimming while
+        // still touching water. Do not force the sprint flag itself.
+        if (ssc$wasSwimming) {
+            // Fabric reevaluates the previous swimming state against isInWater;
+            // bubbles do not keep this power's swimming state alive.
+            player.setSwimming(player.isInWater());
+        } else if (player.isUnderWater()
+                && player.level().getFluidState(player.blockPosition()).is(FluidTags.WATER)) {
+            player.setSwimming(true);
+        }
+    }
+
+    /** Fabric removes vanilla's upward swim impulse while this power is not sprinting. */
+    @ModifyArg(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/player/Player;setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V"),
+            index = 0)
+    private Vec3 ssc$preserveNonSprintSwimVerticalVelocity(Vec3 original) {
+        Player player = (Player) (Object) this;
+        if (SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()
+                && MovementPowerService.hasAlwaysSprintSwimmingPower(player)
+                && (player.isInWater() || player.isSwimming())) {
+            ShapeShifterCurseNeoForge.LOGGER.info(
+                    "[SSC-TRAVEL-DEBUG] stage=player-swim-impulse-before-set side={} tick={} swimming={} sprinting={} velocityBeforeSet={} currentVelocity={}",
+                    player.level().isClientSide ? "client" : "server", player.tickCount,
+                    player.isSwimming(), player.isSprinting(), original, player.getDeltaMovement());
+        }
+        if (!MovementPowerService.hasAlwaysSprintSwimmingPower(player) || player.isSprinting()) {
+            return original;
+        }
+        Vec3 current = player.getDeltaMovement();
+        return new Vec3(original.x, current.y, original.z);
+    }
+
+    /** Fabric scales the existing exhaustion call instead of adding a second drain. */
+    @Inject(method = "causeFoodExhaustion", at = @At("HEAD"), cancellable = true)
+    private void ssc$scaleSwimmingExhaustion(float exhaustion, CallbackInfo ci) {
+        Player player = (Player) (Object) this;
+        final float[] modified = {exhaustion};
+        final boolean[] found = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape_shifter_curse:modify_exhaustion".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                modified[0] = (float) FormPowerRuntime.applyModifier(modified[0],
+                        power.getAsJsonObject("modifier"));
+                found[0] = true;
+            }
+            if (player.isSwimming() && "shape-shifter-curse:always_sprint_swimming".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                modified[0] *= Math.max(0.0F,
+                        FormPowerRuntime.floatValue(power, "hunger_multiplier", 1.0F));
+                found[0] = true;
+            }
+        });
+        if (found[0]) {
+            player.getFoodData().addExhaustion(modified[0]);
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "hasCorrectToolForDrops", at = @At("HEAD"), cancellable = true)
+    private void ssc$allowAllHarvest(BlockState state, CallbackInfoReturnable<Boolean> cir) {
+        Player player = (Player) (Object) this;
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape_shifter_curse:modify_harvest".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.booleanValue(power, "allow", false)
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                cir.setReturnValue(true);
+            }
+        });
+    }
+
+    @Inject(method = "updatePlayerPose", at = @At("HEAD"), cancellable = true)
+    private void ssc$forceFeralPose(CallbackInfo ci) {
+        Player player = (Player) (Object) this;
+        // Axolotl crawling is deliberately the vanilla SWIMMING pose on dry land,
+        // not Forge's CROUCHING pose.  A low ceiling reaches it through vanilla
+        // pose resolution; a held Shift reaches the same pose here.  The renderer
+        // then replaces that single pose with the axolotl Geo crawl animation.
+        if (ssc$shouldForceVanillaCrawl(player)) {
+            this.setPose(Pose.SWIMMING);
+            ci.cancel();
+            return;
+        }
+        boolean isFeral = FormManager.current(player).bodyType() == FormBodyType.FERAL;
+        // Fabric only replaces this method for FERAL forms.  In particular,
+        // axolotl crouching remains vanilla crouching: SSC adjusts its bounds
+        // and renderer without inventing a separate crawl pose.
+        if (!isFeral) {
+            return;
+        }
+        Pose pose;
+        if (this.isFallFlying()) {
+            pose = Pose.FALL_FLYING;
+        } else if (this.isSleeping()) {
+            pose = Pose.STANDING;
+        } else if (this.isSwimming()) {
+            pose = Pose.SWIMMING;
+        } else if (this.isAutoSpinAttack()) {
+            pose = Pose.SPIN_ATTACK;
+        } else if (this.isShiftKeyDown() || MovementPowerService.shouldForceSneaking(player)) {
+            pose = Pose.CROUCHING;
+        } else {
+            pose = Pose.STANDING;
+        }
+
+        Pose resolved = pose;
+        if (!this.isSpectator() && !this.isPassenger() && !this.canPlayerFitWithinBlocksAndEntitiesWhen(pose)) {
+            if (this.canPlayerFitWithinBlocksAndEntitiesWhen(Pose.CROUCHING)) {
+                resolved = Pose.CROUCHING;
+            } else {
+                resolved = Pose.SWIMMING;
+            }
+        }
+        this.setPose(resolved);
+        ci.cancel();
+    }
+
+    @Unique
+    private boolean ssc$shouldForceVanillaCrawl(Player player) {
+        // Shift may start a crawl only on the ground. Once entered, preserve
+        // the swimming pose through a jump or fall until the input/Power ends.
+        // keep_sneaking counts as held Shift for head-collide / no-air powers.
+        if (player.getAbilities().flying
+                || !MovementPowerService.isSneakingOrForced(player) || player.isInWaterOrBubble() || player.isPassenger()
+                || player.isFallFlying() || player.isSleeping() || player.isAutoSpinAttack()) {
+            ssc$forcedCrawlActive = false;
+            return false;
+        }
+        if (!player.onGround() && !ssc$forcedCrawlActive) {
+            return false;
+        }
+        final boolean[] hasCrawlingPower = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:crawling".equals(FormPowerRegistry.typeOf(power))) {
+                hasCrawlingPower[0] = true;
+            }
+        });
+        ssc$forcedCrawlActive = hasCrawlingPower[0];
+        return ssc$forcedCrawlActive;
+    }
+}

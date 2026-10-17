@@ -1,0 +1,260 @@
+package github.com.gengyoubo.sscnf.diet;
+
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.item.ItemArgument;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.Recipe;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.LogicalSide;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.util.thread.EffectiveSide;
+import net.neoforged.neoforge.network.PacketDistributor;
+import github.com.gengyoubo.sscnf.ShapeShifterCurseNeoForge;
+import github.com.gengyoubo.sscnf.network.DietSyncPacket;
+import github.com.gengyoubo.sscnf.network.ModNetwork;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+/** Server recipe inference, authoritative client mirror, and SSC's virtual diet tag view. */
+@net.neoforged.fml.common.EventBusSubscriber(modid = ShapeShifterCurseNeoForge.MOD_ID)
+public final class DietInheritanceService {
+    private static final Snapshot EMPTY = new Snapshot(false, Map.of(), 0, 0);
+    private static volatile Snapshot serverSnapshot = EMPTY;
+    private static volatile Snapshot clientSnapshot = EMPTY;
+    private static MinecraftServer owner;
+
+    public record Snapshot(boolean ready, Map<ResourceLocation, Integer> items, int recipes, int skipped) {
+        public Snapshot {
+            items = Map.copyOf(items);
+        }
+    }
+
+    private DietInheritanceService() {}
+
+    public static boolean matchesTag(ItemStack stack, ResourceLocation tag) {
+        if (!tag.getNamespace().equals(ShapeShifterCurseNeoForge.RESOURCE_NAMESPACE)) {
+            return stack.is(TagKey.create(Registries.ITEM, tag));
+        }
+        int category = switch (tag.getPath()) {
+            case "diet_vegetarian" -> RecipeDietGraph.VEGETARIAN;
+            case "diet_raw_meat" -> RecipeDietGraph.MEAT | RecipeDietGraph.FISH;
+            case "diet_raw_fish" -> RecipeDietGraph.FISH;
+            case "ignore_diet" -> RecipeDietGraph.IGNORE_DIET;
+            default -> 0;
+        };
+        Snapshot snapshot = EffectiveSide.get() == LogicalSide.SERVER ? serverSnapshot : clientSnapshot;
+        if (category == 0 || !snapshot.ready()) return stack.is(TagKey.create(Registries.ITEM, tag));
+        int flags = snapshot.items().getOrDefault(BuiltInRegistries.ITEM.getKey(stack.getItem()), 0);
+        return category == RecipeDietGraph.VEGETARIAN ? RecipeDietGraph.isVegetarian(flags)
+                : (flags & category) != 0;
+    }
+
+    @SubscribeEvent
+    public static void addListener(AddReloadListenerEvent event) {
+        event.addListener(new DietInheritanceConfig.ReloadListener());
+    }
+
+    @SubscribeEvent
+    public static void started(ServerStartedEvent event) {
+        rebuild(event.getServer());
+    }
+
+    @SubscribeEvent
+    public static void stopped(ServerStoppedEvent event) {
+        if (owner == event.getServer()) {
+            owner = null;
+            serverSnapshot = EMPTY;
+        }
+    }
+
+    @SubscribeEvent
+    public static void sync(OnDatapackSyncEvent event) {
+        MinecraftServer server = event.getPlayerList().getServer();
+        // Reload listeners run before tag binding; here both tags and recipes are usable.
+        if (event.getPlayer() == null || owner != server || !serverSnapshot.ready()) rebuild(server);
+        Map<Integer, Integer> networkItems = new HashMap<>();
+        serverSnapshot.items().forEach((id, flags) -> networkItems.put(
+                BuiltInRegistries.ITEM.getId(BuiltInRegistries.ITEM.get(id)), flags));
+        DietSyncPacket packet = new DietSyncPacket(networkItems);
+        for (var player : (event.getPlayer() == null ? event.getPlayerList().getPlayers() : java.util.List.of(event.getPlayer()))) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, packet);
+        }
+    }
+
+    public static void acceptClientSnapshot(Map<Integer, Integer> entries) {
+        Map<ResourceLocation, Integer> items = new HashMap<>();
+        entries.forEach((registryId, flags) -> {
+            Item item = BuiltInRegistries.ITEM.byId(registryId);
+            if (item != null && BuiltInRegistries.ITEM.getId(item) == registryId) {
+                items.put(BuiltInRegistries.ITEM.getKey(item), flags & RecipeDietGraph.ALL);
+            }
+        });
+        clientSnapshot = new Snapshot(true, items, 0, 0);
+    }
+
+    public static void clearClientSnapshot() {
+        clientSnapshot = EMPTY;
+    }
+
+    private static void rebuild(MinecraftServer server) {
+        long start = System.nanoTime();
+        DietInheritanceConfig config = DietInheritanceConfig.current;
+        Map<String, Integer> seeds = new HashMap<>();
+        addSelectors(seeds, config.seeds());
+        // FoodProperties supplies a useful fallback for mods without meat tags.
+        for (Item item : BuiltInRegistries.ITEM) {
+            ItemStack stack = item.getDefaultInstance();
+            try {
+                var food = stack.getFoodProperties(null);
+                if (food != null && stack.is(net.minecraft.tags.ItemTags.MEAT)) {
+                    seeds.merge(BuiltInRegistries.ITEM.getKey(item).toString(), RecipeDietGraph.MEAT, (a, b) -> a | b);
+                }
+            } catch (RuntimeException exception) {
+                ShapeShifterCurseNeoForge.LOGGER.debug("Cannot read food properties for {}",
+                        BuiltInRegistries.ITEM.getKey(item), exception);
+            }
+        }
+        addSelectors(seeds, config.whitelist());
+        Set<String> explicitMeatSeeds = resolve(config.whitelist().getOrDefault(RecipeDietGraph.MEAT, List.of()));
+        Map<String, Integer> denied = new HashMap<>();
+        addSelectors(denied, config.blacklist());
+        for (String id : resolve(config.foodBlacklist())) denied.put(id, RecipeDietGraph.ALL);
+        Set<String> neutral = resolve(config.neutralIngredients());
+        List<Pattern> blockedRecipes = config.recipeBlacklist().stream()
+                .map(DietInheritanceConfig::recipePattern).toList();
+        Map<ResourceLocation, Boolean> acceptedTypes = new HashMap<>();
+        List<RecipeDietGraph.Rule> rules = new ArrayList<>();
+        int skipped = 0;
+        for (var holder : server.getRecipeManager().getRecipes()) {
+            Recipe<?> recipe = holder.value();
+            String recipeId = holder.id().toString();
+            ResourceLocation typeId = BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType());
+            if (blockedRecipes.stream().anyMatch(pattern -> pattern.matcher(recipeId).matches())) {
+                skipped++;
+                continue;
+            }
+            if (typeId == null || !acceptedTypes.computeIfAbsent(typeId,
+                    id -> config.allowsRecipeType(id.toString()))) {
+                skipped++;
+                // Unsupported producers cannot certify food as vegetarian through a different
+                // crafting recipe. They contribute uncertainty, but no animal/plant origins.
+                try {
+                    ItemStack output = recipe.getResultItem(server.registryAccess());
+                    if (!output.isEmpty()) rules.add(new RecipeDietGraph.Rule(recipeId,
+                            BuiltInRegistries.ITEM.getKey(output.getItem()).toString(), List.of()));
+                } catch (RuntimeException exception) {
+                    ShapeShifterCurseNeoForge.LOGGER.debug("Cannot read output of excluded recipe {}", recipeId, exception);
+                }
+                continue;
+            }
+            String outputId = null;
+            try {
+                ItemStack output = recipe.getResultItem(server.registryAccess());
+                if (output.isEmpty()) {
+                    skipped++;
+                    continue;
+                }
+                outputId = BuiltInRegistries.ITEM.getKey(output.getItem()).toString();
+                List<List<String>> slots = new ArrayList<>();
+                boolean unresolved = false;
+                for (Ingredient ingredient : recipe.getIngredients()) {
+                    // Empty slots of shaped recipes are not ingredients.
+                    if (ingredient == Ingredient.EMPTY) continue;
+                    ingredient.invalidate(); // Clear even a pre-cached item list with no stacking IDs yet.
+                    ingredient.getStackingIds();
+                    List<String> alternatives = java.util.Arrays.stream(ingredient.getItems())
+                            .filter(stack -> !stack.isEmpty())
+                            .map(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
+                            .distinct().toList();
+                    if (alternatives.isEmpty()) {
+                        unresolved = true;
+                    }
+                    slots.add(alternatives);
+                }
+                if (unresolved || slots.isEmpty()) {
+                    skipped++;
+                    rules.add(new RecipeDietGraph.Rule(recipeId, outputId, slots));
+                    continue;
+                }
+                rules.add(new RecipeDietGraph.Rule(recipeId, outputId, slots));
+            } catch (RuntimeException exception) {
+                skipped++;
+                if (outputId != null) rules.add(new RecipeDietGraph.Rule(recipeId, outputId, List.of()));
+                ShapeShifterCurseNeoForge.LOGGER.debug("Cannot infer diet from recipe {}", recipeId, exception);
+            }
+        }
+        Map<ResourceLocation, Integer> classified = new HashMap<>();
+        RecipeDietGraph.infer(seeds, rules, neutral, denied, explicitMeatSeeds).forEach((id, flags) ->
+                classified.put(ResourceLocation.parse(id), flags));
+        int usableRecipes = (int) rules.stream().filter(rule -> !rule.ingredients().isEmpty()
+                && rule.ingredients().stream().noneMatch(List::isEmpty)).count();
+        serverSnapshot = new Snapshot(true, classified, usableRecipes, skipped);
+        owner = server;
+        ShapeShifterCurseNeoForge.LOGGER.info("SSC diet inference: {} classified items, {} recipes, {} skipped, {} ms",
+                classified.size(), usableRecipes, skipped, (System.nanoTime() - start) / 1_000_000);
+    }
+
+    private static void addSelectors(Map<String, Integer> destination, Map<Integer, List<String>> categories) {
+        categories.forEach((flags, selectors) -> {
+            for (String id : resolve(selectors)) destination.merge(id, flags, (a, b) -> a | b);
+        });
+    }
+
+    private static Set<String> resolve(Collection<String> selectors) {
+        Set<String> result = new HashSet<>();
+        for (String selector : selectors) {
+            if (selector.startsWith("#")) {
+                TagKey<Item> tag = TagKey.create(Registries.ITEM, ResourceLocation.parse(selector.substring(1)));
+                BuiltInRegistries.ITEM.getTag(tag).ifPresent(holders -> holders.forEach(holder ->
+                        result.add(BuiltInRegistries.ITEM.getKey(holder.value()).toString())));
+            } else {
+                ResourceLocation id = ResourceLocation.parse(selector);
+                if (BuiltInRegistries.ITEM.containsKey(id)) result.add(id.toString());
+            }
+        }
+        return result;
+    }
+
+    @SubscribeEvent
+    public static void commands(RegisterCommandsEvent event) {
+        event.getDispatcher().register(Commands.literal("ssc").then(Commands.literal("diet")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("stats").executes(context -> {
+                    Snapshot snapshot = serverSnapshot;
+                    context.getSource().sendSuccess(() -> Component.translatable("command.ssc.diet.stats",
+                            snapshot.items().size(), snapshot.recipes(), snapshot.skipped()), false);
+                    return 1;
+                }))
+                .then(Commands.literal("inspect").then(Commands.argument("item", ItemArgument.item(event.getBuildContext()))
+                        .executes(context -> {
+                            Item item = ItemArgument.getItem(context, "item").getItem();
+                            ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
+                            int flags = serverSnapshot.items().getOrDefault(id, 0);
+                            context.getSource().sendSuccess(() -> Component.translatable("command.ssc.diet.inspect",
+                                    id.toString(), RecipeDietGraph.isVegetarian(flags),
+                                    (flags & RecipeDietGraph.MEAT) != 0, (flags & RecipeDietGraph.FISH) != 0,
+                                    (flags & RecipeDietGraph.IGNORE_DIET) != 0), false);
+                            return 1;
+                        })))));
+    }
+}

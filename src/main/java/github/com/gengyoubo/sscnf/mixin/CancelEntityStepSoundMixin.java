@@ -1,0 +1,55 @@
+package github.com.gengyoubo.sscnf.mixin;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.state.BlockState;
+import github.com.gengyoubo.sscnf.power.FormPowerRegistry;
+import github.com.gengyoubo.sscnf.power.FormPowerRuntime;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@SuppressWarnings("StatementWithEmptyBody")
+@Mixin(Entity.class)
+public abstract class CancelEntityStepSoundMixin {
+    @Inject(method = "nextStep", at = @At("RETURN"), cancellable = true)
+    private void ssc$stepDistance(org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Float> cir) {
+        if (!((Object) this instanceof Player player)) return;
+        com.google.gson.JsonObject[] first = {null};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (first[0] == null && "shape-shifter-curse:modify_footstep_sound_speed".equals(FormPowerRegistry.typeOf(power))) first[0] = power;
+        });
+        if (first[0] == null) return;
+        boolean running = FormPowerRuntime.booleanValue(first[0], "adjust_run_individually", false) && player.isSprinting();
+        float multiplier = FormPowerRuntime.floatValue(first[0], running ? "run_speed_multiplier" : "speed_multiplier", 1.0F);
+        cir.setReturnValue(player.moveDist + 1.0F / multiplier);
+    }
+
+    @Inject(method = "playStepSound", at = @At("HEAD"), cancellable = true)
+    private void ssc$disableStepSound(BlockPos pos, BlockState state, CallbackInfo ci) {
+        if ((Object) this instanceof Player player) {
+            final boolean[] hasPower = {false};
+            FormPowerRegistry.visitActive(player, (id, power) -> {
+                if ("shape_shifter_curse:action_on_land".equals(FormPowerRegistry.typeOf(power))) {
+                    // Fabric's NoStepSoundPower is mapped to shape_shifter_curse:no_step_sound or similar; check generic
+                }
+                if ("shape-shifter-curse:no_step_sound".equals(FormPowerRegistry.typeOf(power))
+                        || "shape_shifter_curse:play_sound".equals(FormPowerRegistry.typeOf(power))) {
+                    // Fallback: many forms use no_step_sound via custom power type
+                }
+                if ("shape-shifter-curse:no_step_sound".equals(FormPowerRegistry.typeOf(power))
+                        && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                    hasPower[0] = true;
+                }
+                if ("shape_shifter_curse:no_step_sound".equals(FormPowerRegistry.typeOf(power))) {
+                    hasPower[0] = true;
+                }
+            });
+            if (hasPower[0]) {
+                ci.cancel();
+            }
+        }
+    }
+}

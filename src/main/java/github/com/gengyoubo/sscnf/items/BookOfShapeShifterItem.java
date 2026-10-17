@@ -1,0 +1,55 @@
+package github.com.gengyoubo.sscnf.items;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.Level;
+import github.com.gengyoubo.sscnf.client.codex.BookOfShapeShifterScreenV2_P1;
+import github.com.gengyoubo.sscnf.client.codex.StartBookScreenV2;
+import github.com.gengyoubo.sscnf.form.FormManager;
+import github.com.gengyoubo.sscnf.form.FormRegistry;
+import github.com.gengyoubo.sscnf.other.advancement.SscAdvancementTriggers;
+
+import java.util.List;
+
+public final class BookOfShapeShifterItem extends Item {
+    public BookOfShapeShifterItem(Properties properties) {
+        super(properties.stacksTo(1));
+    }
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+
+        if (level.isClientSide) {
+            openBookScreen(player);
+        }
+        if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            SscAdvancementTriggers.ON_OPEN_BOOK_OF_SHAPE_SHIFTER.trigger(serverPlayer);
+        }
+
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
+    }
+
+    @net.neoforged.api.distmarker.OnlyIn(net.neoforged.api.distmarker.Dist.CLIENT)
+    private static void openBookScreen(Player player) {
+        if (FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(FormManager.current(player).id())) {
+            Minecraft.getInstance().setScreen(new StartBookScreenV2(player));
+        } else {
+            Minecraft.getInstance().setScreen(new BookOfShapeShifterScreenV2_P1(player));
+        }
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable(
+                "item.shape-shifter-curse.book_of_shape_shifter.tooltip"
+        ).withStyle(ChatFormatting.GRAY));
+    }
+}

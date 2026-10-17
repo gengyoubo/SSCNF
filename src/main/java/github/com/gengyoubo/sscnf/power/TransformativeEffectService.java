@@ -1,0 +1,132 @@
+package github.com.gengyoubo.sscnf.power;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.neoforged.neoforge.event.entity.player.PlayerWakeUpEvent;
+import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
+import net.neoforged.neoforge.event.entity.living.LivingEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.bus.api.Event;
+import net.neoforged.fml.common.Mod;
+import github.com.gengyoubo.sscnf.ShapeShifterCurseNeoForge;
+import github.com.gengyoubo.sscnf.other.advancement.SscAdvancementTriggers;
+import github.com.gengyoubo.sscnf.other.config.SscCommonConfig;
+import github.com.gengyoubo.sscnf.api.PlayerFormData;
+import github.com.gengyoubo.sscnf.api.SscApi;
+import github.com.gengyoubo.sscnf.form.FormDefinition;
+import github.com.gengyoubo.sscnf.form.FormManager;
+import github.com.gengyoubo.sscnf.form.FormRegistry;
+import github.com.gengyoubo.sscnf.form.TransformManager;
+
+/** Forge-side state machine for Fabric's temporary transformative effects. */
+@net.neoforged.fml.common.EventBusSubscriber(modid = ShapeShifterCurseNeoForge.MOD_ID)
+public final class TransformativeEffectService {
+    public static final int DEFAULT_DURATION = 400 * 20;
+    private TransformativeEffectService() {
+    }
+
+    public static void apply(ServerPlayer player, ResourceLocation targetId) {
+        apply(player, targetId, DEFAULT_DURATION);
+    }
+
+    public static void apply(ServerPlayer player, ResourceLocation targetId, int durationTicks) {
+        FormDefinition target = FormRegistry.get(targetId);
+        if (target == null || durationTicks <= 0 || !canHaveEffect(player)) {
+            return;
+        }
+        SscApi.currentForm(player).ifPresent(data -> {
+            data.setTransformativeEffectFormId(target.id().toString());
+            data.setTransformativeEffectTicks(durationTicks);
+        });
+        SscAdvancementTriggers.ON_GET_TRANSFORM_EFFECT.trigger(player);
+    }
+
+    public static boolean has(Player player) {
+        return SscApi.currentForm(player).map(data ->
+                data.getTransformativeEffectFormId() != null && data.getTransformativeEffectTicks() > 0
+        ).orElse(false);
+    }
+
+    public static void clear(Player player) {
+        SscApi.currentForm(player).map(data -> {
+            boolean hadEffect = hasData(data);
+            data.setTransformativeEffectFormId(null);
+            data.setTransformativeEffectTicks(0);
+            return hadEffect;
+        });
+    }
+
+    public static boolean activate(ServerPlayer player) {
+        ResourceLocation targetId = SscApi.currentForm(player)
+                .map(PlayerFormData::getTransformativeEffectFormId)
+                .map(ResourceLocation::tryParse)
+                .orElse(null);
+        if (targetId == null) {
+            return false;
+        }
+        FormDefinition current = FormManager.current(player);
+        boolean started = current.hasFlag("transform_effect_can_apply")
+                && FormRegistry.get(targetId) != null
+                && TransformManager.forceTransform(player, targetId, false);
+        clear(player);
+        for (MobEffectInstance effect : new java.util.ArrayList<>(player.getActiveEffects())) {
+            if (effect.getEffect().value() instanceof github.com.gengyoubo.sscnf.effect.TransformativeStatusEffect) {
+                player.removeEffect(effect.getEffect());
+            }
+        }
+        return started;
+    }
+
+    @SubscribeEvent
+    public static void allowSleepTime(CanPlayerSleepEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && has(player)) {
+            event.setProblem(null);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onWakeUp(PlayerWakeUpEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && has(player)) {
+            SscAdvancementTriggers.ON_SLEEP_WHEN_HAVE_TRANSFORM_EFFECT.trigger(player);
+            player.sendSystemMessage(Component.translatable(
+                    "info.shape-shifter-curse.origin_form_sleep_when_attached").withStyle(ChatFormatting.LIGHT_PURPLE));
+            activate(player);
+        }
+    }
+
+    @SubscribeEvent
+    public static void tick(net.neoforged.neoforge.event.tick.EntityTickEvent.Pre event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        SscApi.currentForm(player).ifPresent(data -> {
+            if (!hasData(data)) {
+                return;
+            }
+            int remaining = data.getTransformativeEffectTicks() - 1;
+            data.setTransformativeEffectTicks(remaining);
+            if (remaining <= 0) {
+                data.setTransformativeEffectFormId(null);
+                SscAdvancementTriggers.ON_TRANSFORM_EFFECT_FADE.trigger(player);
+            }
+        });
+    }
+
+    private static boolean canHaveEffect(Player player) {
+        FormDefinition form = FormManager.current(player);
+        if (SscCommonConfig.STATUS_POTION_WITH_CURSE.get()
+                && form.id().equals(FormRegistry.ORIGINAL_BEFORE_ENABLE)) {
+            return true;
+        }
+        return form.hasFlag("can_have_transform_effect")
+                && form.hasFlag("transform_effect_can_apply");
+    }
+
+    private static boolean hasData(PlayerFormData data) {
+        return data.getTransformativeEffectFormId() != null
+                && !data.getTransformativeEffectFormId().isBlank()
+                && data.getTransformativeEffectTicks() > 0;
+    }
+}

@@ -1,0 +1,55 @@
+package github.com.gengyoubo.sscnf.mixin.plugin;
+
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.fml.loading.LoadingModList;
+import org.objectweb.asm.tree.ClassNode;
+import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
+import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
+
+import java.util.List;
+import java.util.Set;
+
+public class CuriosMixinPlugin implements IMixinConfigPlugin {
+    @Override
+    public void onLoad(String mixinPackage) {}
+
+    @Override
+    public String getRefMapperConfig() { return null; }
+
+    @Override
+    public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (mixinClassName.contains("integration.ToughAsNails")
+                || mixinClassName.contains("integration.Changed")) {
+            String modId = mixinClassName.contains("integration.Changed") ? "changed" : "toughasnails";
+            // Mixin preparation can run before Forge creates the runtime ModList.
+            ModList runtimeMods = ModList.get();
+            if (runtimeMods != null) {
+                return runtimeMods.isLoaded(modId);
+            }
+            LoadingModList loadingMods = FMLLoader.getLoadingModList();
+            return loadingMods != null && loadingMods.getModFileById(modId) != null;
+        }
+        if (mixinClassName.contains("accessory.CurioImpl")) {
+            try {
+                Class.forName("top.theillusivec4.curios.api.type.capability.ICurioItem", false, getClass().getClassLoader());
+                return true;
+            } catch (ClassNotFoundException e) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {}
+
+    @Override
+    public List<String> getMixins() { return null; }
+
+    @Override
+    public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
+
+    @Override
+    public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
+}
