@@ -52,6 +52,19 @@ import java.util.*;
 public final class FormPowerEvents {
     private static ResourceLocation modifierKey(UUID id) { return ResourceLocation.fromNamespaceAndPath("shape_shifter_curse", id.toString()); }
 
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
+    public static void onShieldBlock(net.neoforged.neoforge.event.entity.living.LivingShieldBlockEvent event) {
+        if (event.isCanceled() || !event.getBlocked() || !(event.getEntity() instanceof Player player)
+                || player.level().isClientSide || !player.isBlocking()
+                || !event.getDamageSource().is(DamageTypeTags.IS_PROJECTILE)
+                || !(event.getDamageSource().getEntity() instanceof LivingEntity attacker) || attacker == player) return;
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:action_on_shield_block".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, attacker, power.getAsJsonObject("condition")))
+                FormPowerRuntime.executeBiEntity(player, attacker, power.getAsJsonObject("bientity_action"));
+        });
+    }
+
     private FormPowerEvents() {
     }
 
@@ -207,8 +220,15 @@ public final class FormPowerEvents {
                 }
                 if ("shape_shifter_curse:action_when_hit".equals(type)
                         && attacker != null && FormPowerRuntime.testDamageCondition(defender, attacker, event.getSource(),
-                        event.getAmount(), power.getAsJsonObject("damage_condition"))) {
+                        event.getAmount(), power.getAsJsonObject("damage_condition"))
+                        && FormPowerRuntime.test(defender, attacker, power.getAsJsonObject("condition"))) {
                     FormPowerRuntime.execute(defender, attacker, power.getAsJsonObject("entity_action"));
+                    JsonObject biAction = power.getAsJsonObject("bientity_action");
+                    if (biAction != null && "shape-shifter-curse:bi_summon_anubis_wolf_minion".equals(FormPowerRegistry.typeOf(biAction))
+                            && FormPowerRuntime.booleanValue(biAction, "reverse", false)) {
+                        JsonObject action = biAction.deepCopy(); action.addProperty("reverse", false);
+                        AnubisMinionService.summon(defender, attacker, action);
+                    } else if (biAction != null) FormPowerRuntime.executeBiEntity(defender, attacker, biAction);
                 }
                 if ("shape-shifter-curse:burn_damage_modifier".equals(type)
                         && event.getSource().is(DamageTypeTags.IS_FIRE)
@@ -225,6 +245,7 @@ public final class FormPowerEvents {
             FormPowerRegistry.visitActive(player, (id, power) -> {
                 String type = FormPowerRegistry.typeOf(power);
                 if ("shape_shifter_curse:modify_damage_dealt".equals(type)
+                        && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("target_condition"))
                         && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("bientity_condition"))
                         && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("condition"))
                         && FormPowerRuntime.testDamageCondition(player, event.getEntity(), event.getSource(),
@@ -246,6 +267,7 @@ public final class FormPowerEvents {
         if (directEntity instanceof Projectile projectile && projectile.getOwner() instanceof Player player) {
             FormPowerRegistry.visitActive(player, (id, power) -> {
                 if (!"shape_shifter_curse:modify_projectile_damage".equals(FormPowerRegistry.typeOf(power))
+                        || !FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("target_condition"))
                         || !FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("condition"))
                         || !matchesProjectile(projectile, power.getAsJsonObject("damage_condition"))) return;
                 event.setAmount((float) FormPowerRuntime.applyModifier(event.getAmount(), power.getAsJsonObject("modifier")));
@@ -446,7 +468,9 @@ public final class FormPowerEvents {
         if (food == null) return;
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"shape_shifter_curse:modify_food".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
                     || !FormPowerRuntime.matchesItem(used, power.getAsJsonObject("item_condition"))) return;
+            FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
             // Vanilla applies the food's status effects inside the Eat event, so "prevent_effects"
             // removes them again here.
             if (FormPowerRuntime.booleanValue(power, "prevent_effects", false)) {
@@ -521,19 +545,21 @@ public final class FormPowerEvents {
             int interval = Math.max(1, FormPowerRuntime.intValue(power, "interval", 20));
             Map<ResourceLocation, Integer> phases = ACTION_OVER_TIME_PHASES.computeIfAbsent(
                     player.getUUID(), ignored -> new HashMap<>());
-            Integer phase = phases.putIfAbsent(powerId, player.tickCount % interval);
+            ResourceLocation instanceId = ResourceLocation.fromNamespaceAndPath(powerId.getNamespace(),
+                    powerId.getPath() + "/timer_" + UUID.nameUUIDFromBytes(power.toString().getBytes(StandardCharsets.UTF_8)).toString().replace("-", ""));
+            Integer phase = phases.putIfAbsent(instanceId, player.tickCount % interval);
             if (phase != null && player.tickCount % interval == phase) {
                 boolean active = FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
                 Map<ResourceLocation, Boolean> prior = ACTION_OVER_TIME_ACTIVE.computeIfAbsent(
                         player.getUUID(), ignored -> new HashMap<>());
-                boolean wasActive = prior.getOrDefault(powerId, false);
+                boolean wasActive = prior.getOrDefault(instanceId, false);
                 if (active) {
                     if (!wasActive) FormPowerRuntime.execute(player, player, power.getAsJsonObject("rising_action"));
                     FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
                 } else if (wasActive) {
                     FormPowerRuntime.execute(player, player, power.getAsJsonObject("falling_action"));
                 }
-                prior.put(powerId, active);
+                prior.put(instanceId, active);
             }
         }
         if ("shape-shifter-curse:add_sustained_instinct".equals(FormPowerRegistry.typeOf(power))
@@ -656,7 +682,7 @@ public final class FormPowerEvents {
                     : power.getAsJsonObject("condition");
             if (!FormPowerRuntime.test(player, player, condition)) return;
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
-            FormPowerRuntime.executeHeldItemAction(player, power.getAsJsonObject("item_action"));
+            FormPowerRuntime.executeItemAction(player, stack, power.getAsJsonObject("item_action"));
         });
     }
 
@@ -866,9 +892,21 @@ public final class FormPowerEvents {
 
     private static boolean matchesProjectile(Projectile projectile, JsonObject condition) {
         if (condition == null) return true;
-        if (!"shape_shifter_curse:projectile".equals(FormPowerRegistry.typeOf(condition))) return true;
-        ResourceLocation id = ResourceLocation.tryParse(FormPowerRuntime.stringValue(condition, "projectile", ""));
-        return id != null && id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()));
+        String type = FormPowerRegistry.typeOf(condition);
+        boolean result;
+        if ("shape_shifter_curse:projectile".equals(type)) {
+            ResourceLocation id = ResourceLocation.tryParse(FormPowerRuntime.stringValue(condition, "projectile", ""));
+            result = !condition.has("projectile") || id != null && id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()));
+        } else if (("shape_shifter_curse:or".equals(type) || "shape_shifter_curse:and".equals(type)) && condition.has("conditions")) {
+            boolean all = "shape_shifter_curse:and".equals(type);
+            result = all;
+            for (var entry : condition.getAsJsonArray("conditions")) {
+                boolean match = entry.isJsonObject() && matchesProjectile(projectile, entry.getAsJsonObject());
+                if (all && !match) { result = false; break; }
+                if (!all && match) { result = true; break; }
+            }
+        } else result = false;
+        return FormPowerRuntime.booleanValue(condition, "inverted", false) != result;
     }
 
     /** Called at LivingEntity.isDamageSourceBlocked, before vanilla shield processing. */

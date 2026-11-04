@@ -51,8 +51,14 @@ public final class PlayerDataEvents {
             SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
             CursedMoonService.sendDaySync(player);
             FormActivePowerService.synchronizeMana(player);
+            FormActivePowerService.synchronizeResources(player);
             InstinctService.synchronizeHud(player);
         }
+    }
+
+    @SubscribeEvent
+    public static void clearAirJumpOnLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        github.com.gengyoubo.sscnf.power.AirJumpService.clearTransient(event.getEntity());
     }
 
     @SubscribeEvent

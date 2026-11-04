@@ -26,7 +26,11 @@ public record ManaSyncPacket(String manaType, float mana, float maximum) impleme
 
     public static void handle(ManaSyncPacket packet, IPayloadContext context) {
         
-        context.enqueueWork(() -> ManaClientState.set(packet.manaType, packet.mana, packet.maximum));
+        context.enqueueWork(() -> {
+            ManaClientState.set(packet.manaType, packet.mana, packet.maximum);
+            if (!packet.manaType.isBlank()) github.com.gengyoubo.sscnf.api.SscApi.currentForm(context.player())
+                    .ifPresent(data -> data.setManaPool(packet.manaType, packet.mana));
+        });
         
     }
 }

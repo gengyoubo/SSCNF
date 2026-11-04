@@ -26,12 +26,14 @@ public final class FormActivePowerService {
     private static final Map<UUID, Map<String, Boolean>> PRESSED_KEYS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Integer>> COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, ChargeState>> CHARGES = new HashMap<>();
+    private static final Map<UUID, java.util.Set<ResourceLocation>> CLIENT_CHARGES = new HashMap<>();
     private static final class ChargeState {
         int ticks;
         int tier;
         int lastUseTick = Integer.MIN_VALUE;
     }
     private static final Map<UUID, Map<ResourceLocation, Double>> RESOURCES = new HashMap<>();
+    private static final Map<UUID, Map<ResourceLocation, Double>> CLIENT_RESOURCES = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Boolean>> TOGGLES = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINTING = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINT_TO_SNEAK_TRIGGERED = new HashMap<>();
@@ -47,8 +49,20 @@ public final class FormActivePowerService {
     public static void clearTransientInput(Player player) {
         UUID id = player.getUUID();
         PRESSED_KEYS.remove(id);
-        CHARGES.remove(id);
+        if (player.level().isClientSide) CLIENT_CHARGES.remove(id);
+        else {
+            Map<ResourceLocation, ChargeState> previous = CHARGES.remove(id);
+            if (previous != null && player instanceof ServerPlayer serverPlayer)
+                previous.keySet().forEach(power -> syncCharge(serverPlayer, power, false));
+        }
         WATER_LAUNCH_GRACE.remove(id);
+        AirJumpService.clearTransient(player);
+        FrostDiveService.clear(player);
+    }
+
+    public static void clearClientState() {
+        CLIENT_CHARGES.clear();
+        CLIENT_RESOURCES.clear();
     }
 
     /** An Origin replacement removes its power instances; discard the matching runtime state. */
@@ -80,6 +94,7 @@ public final class FormActivePowerService {
                     player.isEyeInFluid(FluidTags.WATER), player.getDeltaMovement());
         }
         if (pressed && !wasPressed) {
+            if (FrostDiveService.tryStart(player, key)) return;
             if (toggle(player, key)) {
                 return;
             }
@@ -89,6 +104,7 @@ public final class FormActivePowerService {
             if ("key.jump".equals(key) && triggerActive(player, key)) {
                 return;
             }
+            if ("key.jump".equals(key) && AirJumpService.tryJump(player)) return;
             triggerActive(player, key);
         }
     }
@@ -97,6 +113,8 @@ public final class FormActivePowerService {
         if (player.level().isClientSide) {
             return;
         }
+        AirJumpService.tick(player);
+        if (player instanceof ServerPlayer serverPlayer) FrostDiveService.tick(serverPlayer);
         if (FAMILIAR_FOX_MANA.equals(manaType(player))
                 && github.com.gengyoubo.sscnf.other.cursedmoon.CursedMoonService
                 .isInCursedMoon(player.level()) && mana(player) < maximumMana(player)) {
@@ -251,7 +269,7 @@ public final class FormActivePowerService {
         if (definition != null && "shape_shifter_curse:cooldown".equals(FormPowerRegistry.typeOf(definition.data()))) {
             return isOnCooldown(player, id) ? 1.0D : 0.0D;
         }
-        return RESOURCES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
+        return (player.level().isClientSide ? CLIENT_RESOURCES : RESOURCES).computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
                 .computeIfAbsent(id, ignored -> defaultResource(definition));
     }
 
@@ -270,7 +288,19 @@ public final class FormActivePowerService {
         };
         double min = definition == null ? Double.NEGATIVE_INFINITY : FormPowerRuntime.doubleValue(definition.data(), "min", 0.0D);
         double max = definition == null ? Double.POSITIVE_INFINITY : FormPowerRuntime.doubleValue(definition.data(), "max", Double.MAX_VALUE);
-        RESOURCES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(id, Math.max(min, Math.min(max, value)));
+        double clamped = Math.max(min, Math.min(max, value));
+        var map = (player.level().isClientSide ? CLIENT_RESOURCES : RESOURCES).computeIfAbsent(player.getUUID(), ignored -> new HashMap<>());
+        Double previous = map.put(id, clamped);
+        if (player instanceof ServerPlayer serverPlayer && (previous == null || Double.compare(previous, clamped) != 0))
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(serverPlayer, new github.com.gengyoubo.sscnf.network.PowerResourcePacket(id, clamped));
+    }
+
+    public static void acceptClientResource(Player player, ResourceLocation id, double value) {
+        CLIENT_RESOURCES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(id, value);
+    }
+    public static void synchronizeResources(ServerPlayer player) {
+        RESOURCES.getOrDefault(player.getUUID(), Map.of()).forEach((id, value) ->
+                net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new github.com.gengyoubo.sscnf.network.PowerResourcePacket(id, value)));
     }
 
     public static void triggerCooldown(Player player, ResourceLocation id) {
@@ -295,8 +325,18 @@ public final class FormActivePowerService {
 
     private static float maximumMana(Player player) {
         String type = manaType(player);
-        return FAMILIAR_FOX_MANA.equals(type) ? FAMILIAR_FOX_MAX_MANA
+        float base = FAMILIAR_FOX_MANA.equals(type) ? FAMILIAR_FOX_MAX_MANA
                 : WEB_RESOURCE.equals(type) ? 100.0F : DEFAULT_MANA;
+        Map<String, Float> bonuses = new HashMap<>();
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:mana_attribute".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+            JsonObject modifier = power.getAsJsonObject("max_mana_modifier");
+            if (modifier != null) bonuses.merge(FormPowerRuntime.stringValue(power, "modifierID", id.toString()),
+                    FormPowerRuntime.floatValue(modifier, "add", 0.0F), Math::max);
+        });
+        for (float amount : bonuses.values()) base += amount;
+        return Math.max(1.0F, base);
     }
 
     private static void setMana(Player player, float value) {
@@ -457,8 +497,15 @@ public final class FormActivePowerService {
                     || isOnCooldown(player, id)) {
                 return;
             }
-            ChargeState state = CHARGES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
-                    .computeIfAbsent(id, ignored -> new ChargeState());
+            Map<ResourceLocation, ChargeState> states = CHARGES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>());
+            ChargeState state = states.get(id);
+            if (state == null) {
+                if (!FormPowerRuntime.test(player, player, power.getAsJsonObject("start_condition"))) return;
+                FormPowerRuntime.execute(player, player, power.getAsJsonObject("start_action"));
+                state = new ChargeState();
+                states.put(id, state);
+                syncCharge(player, id, true);
+            }
             state.lastUseTick = player.tickCount;
             state.ticks++;
             for (int tier = 0; tier < 10; tier++) {
@@ -493,6 +540,8 @@ public final class FormActivePowerService {
                 JsonObject autoFire = power.getAsJsonObject(prefix + "auto_fire_condition");
                 if (justCompleted && autoFire != null && FormPowerRuntime.test(player, player, autoFire)) {
                     fireCharge(player, id, power, state);
+                    states.remove(id);
+                    syncCharge(player, id, false);
                     break;
                 }
             }
@@ -513,8 +562,28 @@ public final class FormActivePowerService {
             if (!keys.getOrDefault(key, false) && player.tickCount - state.lastUseTick > 2) {
                 if (!isOnCooldown(player, id)) fireCharge(serverPlayer, id, power, state);
                 states.remove(id);
+                syncCharge(serverPlayer, id, false);
             }
         });
+    }
+
+    public static boolean isCharging(Player player, ResourceLocation id) {
+        String path = id.getPath();
+        ResourceLocation parent = path.endsWith("_charge") ? ResourceLocation.fromNamespaceAndPath(id.getNamespace(), path.substring(0, path.length() - 7)) : id;
+        if (player.level().isClientSide) {
+            var states = CLIENT_CHARGES.getOrDefault(player.getUUID(), java.util.Set.of());
+            return states.contains(id) || states.contains(parent);
+        }
+        var states = CHARGES.getOrDefault(player.getUUID(), Map.of());
+        return states.containsKey(id) || states.containsKey(parent);
+    }
+    public static void acceptClientCharge(Player player, ResourceLocation id, boolean charging) {
+        var states = CLIENT_CHARGES.computeIfAbsent(player.getUUID(), ignored -> new java.util.HashSet<>());
+        if (charging) states.add(id); else states.remove(id);
+    }
+    private static void syncCharge(ServerPlayer player, ResourceLocation id, boolean charging) {
+        if (player.connection != null && player.connection.isAcceptingMessages())
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new github.com.gengyoubo.sscnf.network.ChargeStatePacket(id, charging));
     }
 
     private static void fireCharge(ServerPlayer player, ResourceLocation id, JsonObject power, ChargeState state) {

@@ -223,7 +223,11 @@ public final class MissingPowerEvents {
     private static void maintainEntityGlow(Player player) {
         Set<UUID> wanted = new HashSet<>();
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape_shifter_curse:entity_glow".equals(FormPowerRegistry.typeOf(power))) return;
+            if (!"shape_shifter_curse:entity_glow".equals(FormPowerRegistry.typeOf(power))
+                    || "perks/spider_perceptual_web".equals(id.getPath())
+                    || "perks/marbled_polecat_keen_scent".equals(id.getPath())
+                    || "perks/bat_echolocation".equals(id.getPath())
+                    || "perks/axolotl_tidal_pull".equals(id.getPath())) return;
             double radius = FormPowerRuntime.doubleValue(power, "radius", 20.0D);
             for (Entity target : player.level().getEntities(player, player.getBoundingBox().inflate(radius),
                     entity -> entity.isAlive() && FormPowerRuntime.test(player, entity,
@@ -316,8 +320,11 @@ public final class MissingPowerEvents {
             net.minecraft.world.phys.BlockHitResult hit = player.level().clip(context);
             if (hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) continue;
             FormPowerRuntime.execute(player, target, power.getAsJsonObject("bientity_action"));
-            target.hurt(player.damageSources().playerAttack(player),
-                    FormPowerRuntime.floatValue(power, "damage", 0.0F));
+            float before = CombatPerkService.health(target);
+            if (target.hurt(player.damageSources().playerAttack(player),
+                    FormPowerRuntime.floatValue(power, "damage", 0.0F))) {
+                CombatPerkService.fire(player, target, "pounce", before - CombatPerkService.health(target));
+            }
             return true;
         }
         return false;

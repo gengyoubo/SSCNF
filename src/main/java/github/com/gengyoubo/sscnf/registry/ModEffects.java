@@ -16,6 +16,7 @@ import github.com.gengyoubo.sscnf.effect.TransformativeStatusEffect;
 
 public final class ModEffects {
     public static final DeferredRegister<MobEffect> EFFECTS = DeferredRegister.create(BuiltInRegistries.MOB_EFFECT, ShapeShifterCurseNeoForge.RESOURCE_NAMESPACE);
+    public static final DeferredHolder<MobEffect, ? extends MobEffect> FROST_CLAW = EFFECTS.register("frost_claw", github.com.gengyoubo.sscnf.effect.FrostClawEffect::new);
     public static final DeferredHolder<MobEffect, ? extends MobEffect> IMMOBILITY = EFFECTS.register("immobility_effect", ImmobilityEffect::new);
     public static final DeferredHolder<MobEffect, ? extends MobEffect> FEED = EFFECTS.register("feed_effect", FeedEffect::new);
     public static final DeferredHolder<MobEffect, ? extends MobEffect> ENTANGLED = EFFECTS.register("entangled_effect", EntangledEffect::new);

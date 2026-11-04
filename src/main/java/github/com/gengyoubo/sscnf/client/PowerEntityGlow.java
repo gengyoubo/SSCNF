@@ -15,7 +15,8 @@ public final class PowerEntityGlow {
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (matched[0] == null && "shape_shifter_curse:entity_glow".equals(FormPowerRegistry.typeOf(power))
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
-                    && FormPowerRuntime.test(player, target, power.getAsJsonObject("bientity_condition"))) matched[0] = power;
+                    && FormPowerRuntime.test(player, target, power.getAsJsonObject("bientity_condition"))
+                    && FormPowerRuntime.testEntity(player, target, power.getAsJsonObject("entity_condition"))) matched[0] = power;
         });
         return matched[0];
     }

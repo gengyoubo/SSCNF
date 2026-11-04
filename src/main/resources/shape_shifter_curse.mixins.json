@@ -6,6 +6,9 @@
     "compatibilityLevel": "JAVA_21",
     "mixins": [
         "LivingEntityMixin",
+        "FrostMovementMixin",
+        "PlayerCombatPerkMixin",
+        "WitherIntervalMixin",
         "SmithingFullStackMixin",
         "ItemCombinerQuickMoveMixin",
         "accessor.SmithingRecipeAccessor",

@@ -128,6 +128,8 @@ public final class FormPowerRuntime {
                         BlockPos.containing(actor.getX(), actor.getEyeY(), actor.getZ())), condition);
             }
             case "shape_shifter_curse:inventory" -> matchesInventory(actor, condition);
+            case "shape_shifter_curse:equipped_item" -> matchesItem(actor.getItemBySlot(equipmentSlot(
+                    stringValue(condition, "equipment_slot", "mainhand"))), condition.getAsJsonObject("item_condition"));
             case "shape_shifter_curse:on_block" -> matchesBlock(actor, condition);
             case "shape_shifter_curse:in_block_anywhere" -> matchesBlockAnywhere(actor, condition.getAsJsonObject("block_condition"));
             case "shape_shifter_curse:block_in_radius" -> compare(blockCountInRadius(actor, condition), condition);
@@ -155,6 +157,20 @@ public final class FormPowerRuntime {
                     || testEntity(actor, target, condition.getAsJsonObject("entity_condition")));
             case "shape_shifter_curse:raycast" -> raycast(actor, condition);
             case "shape-shifter-curse:barehand_digging" -> barehandDigging(actor);
+            case "shape-shifter-curse:blocking" -> actor.isBlocking();
+            case "shape-shifter-curse:mana_compare" -> compare(FormActivePowerService.mana(actor), condition);
+            case "shape-shifter-curse:charging" -> {
+                var powerId = ResourceLocation.tryParse(stringValue(condition, "power", ""));
+                yield powerId != null && FormActivePowerService.isCharging(actor, powerId);
+            }
+            case "shape-shifter-curse:raycast_target" -> target != null && raycastEntity(actor, condition) == target;
+            case "shape-shifter-curse:airborne" -> FrostDiveService.airborne(actor);
+            case "shape-shifter-curse:diving" -> FrostDiveService.isDiving(actor);
+            case "shape-shifter-curse:enemy" -> target instanceof LivingEntity living && living.isAlive()
+                    && actor != target && !actor.isAlliedTo(target)
+                    && !(target instanceof net.minecraft.world.entity.TamableAnimal pet && actor.getUUID().equals(pet.getOwnerUUID()))
+                    && (target instanceof net.minecraft.world.entity.monster.Monster
+                    || target instanceof net.minecraft.world.entity.Mob mob && mob.getTarget() == actor);
             case "shape-shifter-curse:chance" -> new java.util.Random().nextFloat()
                     < floatValue(condition, "chance", 0.0F);
             case "shape-shifter-curse:can_render_gui" -> canRenderGui();
@@ -375,12 +391,32 @@ public final class FormPowerRuntime {
         }
 
         LivingEntity recipient = target == null ? actor : target;
+        if ("shape_shifter_curse:if_else".equals(type)) {
+            boolean passes = recipient instanceof Player targetPlayer
+                    ? test(targetPlayer, targetPlayer, action.getAsJsonObject("condition"))
+                    : testEntity(actor, recipient, action.getAsJsonObject("condition"));
+            execute(actor, recipient, action.getAsJsonObject(passes ? "if_action" : "else_action"));
+            return;
+        }
         ResourceLocation typeId = ResourceLocation.tryParse(type);
         if (typeId != null && SscJavaRegistries.executeAction(typeId, actor, recipient, action)) {
             return;
         }
         switch (type) {
             case "shape_shifter_curse:apply_effect" -> applyEffect(recipient, action.getAsJsonObject("effect"));
+            case "shape-shifter-curse:fire_held_arrow" -> fireHeldArrow(actor, action);
+            case "shape-shifter-curse:change_food" -> {
+                if (!recipient.level().isClientSide && recipient instanceof Player targetPlayer) {
+                    var food = targetPlayer.getFoodData();
+                    food.setFoodLevel(net.minecraft.util.Mth.clamp(food.getFoodLevel() + intValue(action, "amount", 0), 0, 20));
+                    food.setSaturation(Math.min(food.getSaturationLevel(), food.getFoodLevel()));
+                }
+            }
+            case "shape_shifter_curse:clear_effect" -> {
+                ResourceLocation effectId = ResourceLocation.tryParse(stringValue(action, "effect", ""));
+                if (effectId != null) BuiltInRegistries.MOB_EFFECT.getHolder(effectId).ifPresent(recipient::removeEffect);
+            }
+            case "shape-shifter-curse:recall_wolf_minions" -> AnubisMinionService.recall(actor);
             case "shape_shifter_curse:heal" -> recipient.heal(floatValue(action, "amount", 0.0F));
             case "shape_shifter_curse:add_velocity" -> addVelocity(recipient, action);
             case "shape_shifter_curse:set_on_fire" -> recipient.igniteForSeconds(intValue(action, "duration", 1));
@@ -397,8 +433,35 @@ public final class FormPowerRuntime {
             case "shape_shifter_curse:actor_action" -> execute(actor, actor, action.getAsJsonObject("action"));
             case "shape_shifter_curse:trigger_cooldown" -> triggerCooldown(actor, action);
             case "shape_shifter_curse:modify_resource" -> modifyResource(actor, action);
+            case "shape_shifter_curse:change_resource", "shape_shifter_curse:set_resource" -> {
+                var id = ResourceLocation.tryParse(stringValue(action, "resource", ""));
+                if (id != null) {
+                    var modifier = new JsonObject();
+                    modifier.addProperty("operation", "shape_shifter_curse:set_resource".equals(type)
+                            || "set".equals(stringValue(action, "operation", "add")) ? "set_total" : "addition");
+                    modifier.addProperty("value", doubleValue(action, "shape_shifter_curse:set_resource".equals(type) ? "value" : "change", 0));
+                    FormActivePowerService.modifyResource(actor, id, modifier);
+                }
+            }
             case "shape_shifter_curse:execute_command" -> executeCommand(actor, recipient, action);
             case "shape_shifter_curse:spawn_particles" -> spawnParticles(actor, recipient, action);
+            case "shape_shifter_curse:raycast" -> {
+                if (!actor.level().isClientSide) {
+                    LivingEntity found = raycastEntity(actor, action);
+                    if (found != null) executeBiEntity(actor, found, action.getAsJsonObject("bientity_action"));
+                }
+            }
+            case "shape_shifter_curse:area_of_effect" -> {
+                if (!recipient.level().isClientSide) {
+                    double radius = Math.max(0, doubleValue(action, "radius", 0));
+                    for (LivingEntity nearby : recipient.level().getEntitiesOfClass(LivingEntity.class,
+                            recipient.getBoundingBox().inflate(radius), entity -> entity != actor && entity.isAlive()
+                                    && entity.distanceToSqr(recipient) <= radius * radius)) {
+                        if (test(actor, nearby, action.getAsJsonObject("bientity_condition")))
+                            executeBiEntity(actor, nearby, action.getAsJsonObject("bientity_action"));
+                    }
+                }
+            }
             case "shape_shifter_curse:spawn_effect_cloud" -> spawnEffectCloud(actor, recipient, action);
             case "shape_shifter_curse:fire_projectile" -> fireProjectile(actor, action);
             case "shape-shifter-curse:invoke_accessory" -> invokeAccessory(actor, action);
@@ -463,6 +526,28 @@ public final class FormPowerRuntime {
             case "shape_shifter_curse:target_action" -> execute(actor, target, action.getAsJsonObject("action"));
             case "shape-shifter-curse:bi_summon_anubis_wolf_minion" ->
                     AnubisMinionService.summon(actor, target, action);
+            case "shape-shifter-curse:damage_on_success" -> {
+                if (!actor.level().isClientSide && target != null
+                        && target.hurt(actor.damageSources().playerAttack(actor), floatValue(action, "amount", 0)))
+                    executeBiEntity(actor, target, action.getAsJsonObject("bientity_action"));
+            }
+            case "shape-shifter-curse:directed_particles" -> directedParticles(actor, target, action);
+            case "shape-shifter-curse:echolocation_vibration" -> {
+                if (actor instanceof net.minecraft.server.level.ServerPlayer player && target.level() instanceof net.minecraft.server.level.ServerLevel level) {
+                    Vec3 origin = target.getBoundingBox().getCenter();
+                    var particle = new net.minecraft.core.particles.VibrationParticleOption(
+                            new net.minecraft.world.level.gameevent.EntityPositionSource(actor, actor.getEyeHeight()), 10);
+                    level.sendParticles(player, particle, true, origin.x, origin.y, origin.z, 1, 0, 0, 0, 0);
+                }
+            }
+            case "shape-shifter-curse:fireball_at_target" -> {
+                if (!actor.level().isClientSide && target != null) {
+                    Vec3 direction = target.getBoundingBox().getCenter().subtract(actor.getEyePosition()).normalize();
+                    var fireball = new net.minecraft.world.entity.projectile.SmallFireball(actor.level(), actor, direction);
+                    fireball.setPos(actor.getEyePosition().add(direction.scale(0.6)));
+                    actor.level().addFreshEntity(fireball);
+                }
+            }
             case "shape_shifter_curse:add_velocity" -> {
                 if ((target.level().isClientSide && !booleanValue(action, "client", true))
                         || (!target.level().isClientSide && !booleanValue(action, "server", true))) return;
@@ -787,7 +872,7 @@ public final class FormPowerRuntime {
         return false;
     }
 
-    private static boolean testEntity(Player actor, Entity target, JsonObject condition) {
+    public static boolean testEntity(Player actor, Entity target, JsonObject condition) {
         if (condition == null) {
             return true;
         }
@@ -798,13 +883,14 @@ public final class FormPowerRuntime {
             case "shape_shifter_curse:entity_type" -> matchesEntityType(target, condition);
             case "shape_shifter_curse:in_tag" -> matchesEntityTag(target, condition);
             case "shape_shifter_curse:status_effect" -> target instanceof LivingEntity living && hasEffect(living, condition);
+            case "shape_shifter_curse:health" -> target instanceof LivingEntity living && compare(living.getHealth(), condition);
             case "shape_shifter_curse:owner" -> (target instanceof Projectile projectile && projectile.getOwner() == actor)
                     || (target instanceof TamableAnimal tameable && tameable.getOwner() == actor);
             default -> test(actor, target, condition);
         };
         // test() already observes inversion for its fallback branch.
         return !type.equals("shape_shifter_curse:owner") && !type.equals("shape_shifter_curse:entity_type") && !type.equals("shape_shifter_curse:in_tag")
-                && !type.equals("shape_shifter_curse:status_effect") && !type.equals("shape_shifter_curse:and") && !type.equals("shape_shifter_curse:or")
+                && !type.equals("shape_shifter_curse:status_effect") && !type.equals("shape_shifter_curse:health") && !type.equals("shape_shifter_curse:and") && !type.equals("shape_shifter_curse:or")
                 ? result : ((condition.has("inverted") && condition.get("inverted").getAsBoolean()) != result);
     }
 
@@ -1370,6 +1456,16 @@ public final class FormPowerRuntime {
     }
 
     /** Executes the item-side half of Apoli interaction powers against the used main-hand stack. */
+    public static void executeItemAction(Player actor, ItemStack stack, JsonObject action) {
+        if (action == null || stack == null) return;
+        switch (FormPowerRegistry.typeOf(action)) {
+            case "shape_shifter_curse:consume" -> { if (!actor.getAbilities().instabuild) stack.shrink(Math.max(0, intValue(action, "amount", 1))); }
+            case "shape_shifter_curse:damage" -> damageStack(actor, stack, intValue(action, "amount", 1),
+                    booleanValue(action, "ignore_unbreaking", false), stack == actor.getOffhandItem() ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND);
+            default -> execute(actor, actor, action);
+        }
+    }
+
     public static void executeHeldItemAction(Player actor, JsonObject action) {
         if (action == null) return;
         ItemStack stack = actor.getMainHandItem();
@@ -1549,6 +1645,56 @@ public final class FormPowerRuntime {
                     stringValue(action, "command", ""));
         }
     }
+
+    private static void fireHeldArrow(Player actor, JsonObject data) {
+        if (actor.level().isClientSide) return;
+        ItemStack stack = actor.getMainHandItem();
+        if (!(stack.getItem() instanceof net.minecraft.world.item.ArrowItem arrow)
+                || actor.getCooldowns().isOnCooldown(arrow) || actor.getCooldowns().isOnCooldown(Items.ARROW)) return;
+        var projectile = arrow.createArrow(actor.level(), stack, actor, null);
+        projectile.shootFromRotation(actor, actor.getXRot(), actor.getYRot(), 0, floatValue(data, "speed", 3), 0);
+        projectile.setCritArrow(true);
+        projectile.pickup = actor.isCreative() ? net.minecraft.world.entity.projectile.AbstractArrow.Pickup.CREATIVE_ONLY
+                : net.minecraft.world.entity.projectile.AbstractArrow.Pickup.ALLOWED;
+        if (actor.level().addFreshEntity(projectile)) {
+            if (!actor.isCreative()) stack.shrink(1);
+            actor.getCooldowns().addCooldown(arrow, intValue(data, "cooldown", 20));
+            actor.getCooldowns().addCooldown(Items.ARROW, intValue(data, "cooldown", 20));
+        }
+    }
+
+    private static void directedParticles(Player actor, LivingEntity target, JsonObject action) {
+        if (!(actor.level() instanceof net.minecraft.server.level.ServerLevel level)) return;
+        ResourceLocation id = ResourceLocation.tryParse(stringValue(action, "particle", ""));
+        var particle = id == null ? null : BuiltInRegistries.PARTICLE_TYPE.get(id);
+        if (!(particle instanceof net.minecraft.core.particles.ParticleOptions option)) return;
+        boolean reverse = "target_to_actor".equals(stringValue(action, "direction", "actor_to_target"));
+        JsonObject actorOffset = action.getAsJsonObject("actor_offset"), targetOffset = action.getAsJsonObject("target_offset");
+        Vec3 from = actor.position().add(doubleValue(actorOffset, "x", 0), doubleValue(actorOffset, "y", 0), doubleValue(actorOffset, "z", 0));
+        Vec3 to = target.position().add(doubleValue(targetOffset, "x", 0), doubleValue(targetOffset, "y", 0), doubleValue(targetOffset, "z", 0));
+        Vec3 origin = reverse ? to : from;
+        Vec3 velocity = (reverse ? from.subtract(to) : to.subtract(from)).normalize().scale(doubleValue(action, "speed", 1));
+        for (int i = 0, count = Math.min(100, Math.max(0, intValue(action, "count", 1))); i < count; i++)
+            level.sendParticles(option, origin.x, origin.y, origin.z, 0, velocity.x, velocity.y, velocity.z, 1);
+    }
+
+    private static LivingEntity raycastEntity(Player actor, JsonObject data) {
+        double distance = Math.max(0, doubleValue(data, "distance", 5));
+        Vec3 start = actor.getEyePosition(), end = start.add(actor.getLookAngle().scale(distance));
+        var hitBlock = actor.level().clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, actor));
+        double closestDistance = hitBlock.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                ? distance * distance : start.distanceToSqr(hitBlock.getLocation());
+        LivingEntity closest = null;
+        for (LivingEntity candidate : actor.level().getEntitiesOfClass(LivingEntity.class,
+                actor.getBoundingBox().expandTowards(actor.getLookAngle().scale(distance)).inflate(1), entity -> entity != actor && entity.isAlive())) {
+            var hit = candidate.getBoundingBox().inflate(0.3).clip(start, end);
+            if (hit.isEmpty() || !test(actor, candidate, data.getAsJsonObject("bientity_condition"))) continue;
+            double d = start.distanceToSqr(hit.get());
+            if (d < closestDistance) { closest = candidate; closestDistance = d; }
+        }
+        return closest;
+    }
+
 
     private static void spawnParticles(Player actor, LivingEntity recipient, JsonObject action) {
         if (!(recipient.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) return;

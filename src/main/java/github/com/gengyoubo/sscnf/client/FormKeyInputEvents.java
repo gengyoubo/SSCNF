@@ -30,6 +30,8 @@ public final class FormKeyInputEvents {
 Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null) {
             clipAtLedgeDisabled = false;
+            github.com.gengyoubo.sscnf.power.FrostDiveService.clearClient();
+            github.com.gengyoubo.sscnf.power.FormActivePowerService.clearClientState();
             LAST_STATE.clear();
             return;
         } else if (!FormPowerRegistry.has(minecraft.player, TOGGLE_CLIP_POWER)) {

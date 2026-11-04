@@ -19,6 +19,9 @@ public final class ModNetwork {
     private ModNetwork() {}
     public static void initialize(net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent event) {
         var registrar = event.registrar("1");
+        registrar.playToClient(ChargeStatePacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> ChargeStatePacket.encode(packet, buffer), ChargeStatePacket::decode), ChargeStatePacket::handle);
+        registrar.playToClient(FrostDiveStatePacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> FrostDiveStatePacket.encode(packet, buffer), FrostDiveStatePacket::decode), FrostDiveStatePacket::handle);
+        registrar.playToClient(PowerResourcePacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> PowerResourcePacket.encode(packet, buffer), PowerResourcePacket::decode), PowerResourcePacket::handle);
         registrar.playToClient(GameplayConfigPacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> GameplayConfigPacket.encode(packet, buffer), GameplayConfigPacket::decode), GameplayConfigPacket::handle);
         registrar.playToClient(SyncFormPacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> SyncFormPacket.encode(packet, buffer), SyncFormPacket::decode), SyncFormPacket::handle);
         registrar.playToServer(ActivePowerKeyPacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> ActivePowerKeyPacket.encode(packet, buffer), ActivePowerKeyPacket::decode), ActivePowerKeyPacket::handle);

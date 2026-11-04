@@ -8,6 +8,7 @@ public final class BuiltinContent {
     public static void register() {
         BuiltinAccessories.register();
         BuiltinBetaAccessories.register();
+        BuiltinPerkPowers.register();
         BuiltinPowers01.register();
         BuiltinPowers02.register();
         BuiltinPowers03.register();
