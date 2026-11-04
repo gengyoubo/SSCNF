@@ -62,7 +62,7 @@ public final class FormPowerRegistry {
 
     public static List<ResourceLocation> idsFor(Player player) {
         ResourceLocation formId = FormManager.current(player).id();
-        List<ResourceLocation> assigned = idsForForm(formId);
+        List<ResourceLocation> assigned = idsForPlayerBase(player);
         if (player.level().isClientSide) {
             SyncedPowerSet synced = CLIENT_SYNCED_POWER_SETS.get(player.getUUID());
             if (synced != null && synced.formId().equals(formId)) {
@@ -70,6 +70,25 @@ public final class FormPowerRegistry {
             }
         }
         return AccessoryPowers.effectivePowerIds(player, assigned);
+    }
+
+    /** Form powers after unlocked perks, before player equipment changes. */
+    public static List<ResourceLocation> idsForPlayerBase(Player player) {
+        ResourceLocation formId = FormManager.current(player).id();
+        LinkedHashSet<ResourceLocation> added = new LinkedHashSet<>(idsForForm(formId));
+        LinkedHashSet<ResourceLocation> removed = new LinkedHashSet<>();
+        github.com.gengyoubo.sscnf.api.SscApi.currentForm(player).ifPresent(data ->
+                data.getUnlockedPerks().stream().sorted().forEach(id -> {
+                    var tree = SscJavaRegistries.perkTreeFor(id).orElse(null);
+                    var perk = SscJavaRegistries.perk(id).orElse(null);
+                    if (tree != null && perk != null && perk.implemented() && tree.matchesForm(formId)
+                            && tree.formGroupId().toString().equals(data.getFormGroupId())) {
+                        added.addAll(perk.powersAdded());
+                        removed.addAll(perk.powersRemoved());
+                    }
+                }));
+        added.removeAll(removed);
+        return List.copyOf(added);
     }
 
     /** Installs the server's base form-power assignment for a client player. */

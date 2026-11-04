@@ -92,7 +92,7 @@ public final class FormUpgradeScreen extends Screen {
     }
 
     private PerkTree firstTree() {
-        Map<ResourceLocation, PerkTree> trees = SscJavaRegistries.perkTreesForGroup(formGroupId);
+        Map<ResourceLocation, PerkTree> trees = SscJavaRegistries.perkTreesForForm(formGroupId, net.minecraft.client.Minecraft.getInstance().player == null ? null : github.com.gengyoubo.sscnf.form.FormManager.current(net.minecraft.client.Minecraft.getInstance().player).id());
         if (trees.isEmpty()) {
             return null;
         }
@@ -200,7 +200,12 @@ public final class FormUpgradeScreen extends Screen {
         } else if (hovered) {
             graphics.blit(systemIcon("select"), posX - 9, posY - 9, 0, 0, 20, 20, 20, 20);
         }
-        graphics.blit(icon, posX - 8, posY - 8, 0, 0, NODE_ICON, NODE_ICON, NODE_ICON, NODE_ICON);
+        Perk perk = SscJavaRegistries.perk(node.perkId()).orElse(null);
+        if (perk != null && perk.iconX() >= 0 && perk.iconY() >= 0) {
+            graphics.blit(ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseNeoForge.RESOURCE_NAMESPACE,
+                    "textures/perk/textures.png"), posX - 8, posY - 8,
+                    perk.iconX() * 16, perk.iconY() * 16, NODE_ICON, NODE_ICON, 512, 512);
+        } else graphics.blit(icon, posX - 8, posY - 8, 0, 0, NODE_ICON, NODE_ICON, NODE_ICON, NODE_ICON);
     }
 
     private void drawInfo(GuiGraphics graphics, ResourceLocation perkId) {
@@ -214,13 +219,17 @@ public final class FormUpgradeScreen extends Screen {
             graphics.drawString(font, lines.get(i), ix, ly, 0xFFF3E9FF, false);
             ly += 10;
         }
+        if (perk != null && !perk.implemented()) {
+            graphics.drawWordWrap(font, Component.translatable(KEY + "purchase.not_implemented"), ix, baseY + 125, 91, 0xFFFFB5A7);
+            return;
+        }
         int cost = perk == null ? 0 : perk.experienceLevels();
         graphics.drawString(font, Component.translatable(KEY + "perk_xp", cost), ix, baseY + 148, 0xFF9FEFFF);
     }
 
     private boolean isSelectable(ResourceLocation perkId) {
         Perk perk = SscJavaRegistries.perk(perkId).orElse(null);
-        if (perk == null || unlockedPerks.contains(perkId)) {
+        if (perk == null || !perk.implemented() || unlockedPerks.contains(perkId)) {
             return false;
         }
         if (perk.requiredAttunerLevel() > tier) {

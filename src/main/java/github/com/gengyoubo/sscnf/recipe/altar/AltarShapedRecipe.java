@@ -36,6 +36,7 @@ public class AltarShapedRecipe implements AltarRecipe {
     private final Ingredient catalyst;
     private final int recipeTime;
     private final int fuelCost;
+    private final int totalFuelCost;
     private final ResourceLocation requireAdvancement;
 
     public AltarShapedRecipe(ResourceLocation id, int width, int height, NonNullList<Ingredient> ingredients,
@@ -50,11 +51,13 @@ public class AltarShapedRecipe implements AltarRecipe {
         this.catalyst = catalyst;
         this.recipeTime = recipeTime;
         this.fuelCost = fuelCost;
+        this.totalFuelCost = -1;
         this.requireAdvancement = requireAdvancement;
     }
 
     @Override public int getRecipeTime() { return recipeTime; }
     @Override public int getFuelCost() { return fuelCost; }
+    @Override public int getTotalFuelCost() { return totalFuelCost; }
     @Override public Ingredient getCatalyst() { return catalyst; }
 
     @Override
@@ -106,10 +109,10 @@ public class AltarShapedRecipe implements AltarRecipe {
     public int getHeight() { return height; }
     public NonNullList<Ingredient> getIngredients() { return ingredients; }
 
-    private AltarShapedRecipe(net.minecraft.world.item.crafting.ShapedRecipePattern pattern, ItemStack result, java.util.Optional<Ingredient> catalyst, int time, int fuel, java.util.Optional<ResourceLocation> advancement) {
+    private AltarShapedRecipe(net.minecraft.world.item.crafting.ShapedRecipePattern pattern, ItemStack result, java.util.Optional<Ingredient> catalyst, int time, int fuel, java.util.Optional<Integer> moondust, java.util.Optional<ResourceLocation> advancement) {
         this.pattern = pattern; this.id = ResourceLocation.parse("shape-shifter-curse:altar");
         this.width = pattern.width(); this.height = pattern.height(); this.ingredients = pattern.ingredients();
-        this.result = result; this.catalyst = catalyst.orElse(Ingredient.EMPTY); this.recipeTime = time; this.fuelCost = fuel; this.requireAdvancement = advancement.orElse(null);
+        this.result = result; this.catalyst = catalyst.orElse(Ingredient.EMPTY); this.recipeTime = time; this.fuelCost = fuel; this.totalFuelCost = moondust.map(n -> n * 800).orElse(-1); this.requireAdvancement = advancement.orElse(null);
     }
     public static final class Serializer implements RecipeSerializer<AltarShapedRecipe> {
         private static final com.mojang.serialization.MapCodec<AltarShapedRecipe> CODEC = com.mojang.serialization.codecs.RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -118,6 +121,7 @@ public class AltarShapedRecipe implements AltarRecipe {
             Ingredient.CODEC_NONEMPTY.optionalFieldOf("catalyst").forGetter(r -> java.util.Optional.ofNullable(r.catalyst).filter(i -> !i.isEmpty())),
             com.mojang.serialization.Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf("time", 200).forGetter(r -> r.recipeTime),
             com.mojang.serialization.Codec.intRange(0, Integer.MAX_VALUE).optionalFieldOf("fuel_cost", 1).forGetter(r -> r.fuelCost),
+            com.mojang.serialization.Codec.intRange(0, Integer.MAX_VALUE / 800).optionalFieldOf("moondust_cost").forGetter(r -> r.totalFuelCost < 0 ? java.util.Optional.empty() : java.util.Optional.of(r.totalFuelCost / 800)),
             ResourceLocation.CODEC.optionalFieldOf("require_advancement").forGetter(r -> java.util.Optional.ofNullable(r.requireAdvancement))
         ).apply(instance, AltarShapedRecipe::new));
         @Override public com.mojang.serialization.MapCodec<AltarShapedRecipe> codec() { return CODEC; }

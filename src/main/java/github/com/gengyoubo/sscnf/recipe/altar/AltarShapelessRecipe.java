@@ -24,6 +24,7 @@ public class AltarShapelessRecipe implements AltarRecipe {
     private final Ingredient catalyst;
     private final int recipeTime;
     private final int fuelCost;
+    private final int totalFuelCost;
     private final ResourceLocation requireAdvancement;
 
     public AltarShapelessRecipe(ResourceLocation id, ItemStack result, NonNullList<Ingredient> ingredients, Ingredient catalyst, int recipeTime, int fuelCost, ResourceLocation requireAdvancement) {
@@ -33,11 +34,13 @@ public class AltarShapelessRecipe implements AltarRecipe {
         this.catalyst = catalyst;
         this.recipeTime = recipeTime;
         this.fuelCost = fuelCost;
+        this.totalFuelCost = -1;
         this.requireAdvancement = requireAdvancement;
     }
 
     @Override public int getRecipeTime() { return recipeTime; }
     @Override public int getFuelCost() { return fuelCost; }
+    @Override public int getTotalFuelCost() { return totalFuelCost; }
     @Override public Ingredient getCatalyst() { return catalyst; }
 
     @Override
@@ -64,17 +67,25 @@ public class AltarShapelessRecipe implements AltarRecipe {
             if (!s.isEmpty()) inputs.add(s);
         }
         if (inputs.size() != ingredients.size()) return false;
-        java.util.List<Ingredient> remaining = new java.util.ArrayList<>(ingredients);
-        for (ItemStack stack : inputs) {
-            boolean matched = false;
-            var it = remaining.iterator();
-            while (it.hasNext()) {
-                Ingredient ing = it.next();
-                if (ing.test(stack)) { it.remove(); matched = true; break; }
-            }
-            if (!matched) return false;
+        int[] ingredientInput = new int[ingredients.size()];
+        java.util.Arrays.fill(ingredientInput, -1);
+        for (int i = 0; i < inputs.size(); i++) {
+            if (!matchInput(inputs, i, ingredientInput, new boolean[ingredients.size()])) return false;
         }
-        return remaining.isEmpty();
+        return true;
+    }
+
+    private boolean matchInput(java.util.List<ItemStack> inputs, int index, int[] ingredientInput, boolean[] visited) {
+        for (int i = 0; i < ingredients.size(); i++) {
+            if (!visited[i] && ingredients.get(i).test(inputs.get(index))) {
+                visited[i] = true;
+                if (ingredientInput[i] == -1 || matchInput(inputs, ingredientInput[i], ingredientInput, visited)) {
+                    ingredientInput[i] = index;
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // Fabric uses StackedContents helper via RecipeMatcher, we simplify by using shapeless check
@@ -88,10 +99,10 @@ public class AltarShapelessRecipe implements AltarRecipe {
 
     public NonNullList<Ingredient> getIngredients() { return ingredients; }
 
-    private AltarShapelessRecipe(java.util.List<Ingredient> ingredients, ItemStack result, java.util.Optional<Ingredient> catalyst, int time, int fuel, java.util.Optional<ResourceLocation> advancement) {
+    private AltarShapelessRecipe(java.util.List<Ingredient> ingredients, ItemStack result, java.util.Optional<Ingredient> catalyst, int time, int fuel, java.util.Optional<Integer> moondust, java.util.Optional<ResourceLocation> advancement) {
         this.id = ResourceLocation.parse("shape-shifter-curse:altar"); this.ingredients = NonNullList.create(); this.ingredients.addAll(ingredients);
         if (ingredients.isEmpty() || ingredients.size() > 9) throw new IllegalArgumentException("Altar requires 1 to 9 ingredients");
-        this.result = result; this.catalyst = catalyst.orElse(Ingredient.EMPTY); this.recipeTime = time; this.fuelCost = fuel; this.requireAdvancement = advancement.orElse(null);
+        this.result = result; this.catalyst = catalyst.orElse(Ingredient.EMPTY); this.recipeTime = time; this.fuelCost = fuel; this.totalFuelCost = moondust.map(n -> n * 800).orElse(-1); this.requireAdvancement = advancement.orElse(null);
     }
     public static final class Serializer implements RecipeSerializer<AltarShapelessRecipe> {
         private static final com.mojang.serialization.MapCodec<AltarShapelessRecipe> CODEC = com.mojang.serialization.codecs.RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -100,6 +111,7 @@ public class AltarShapelessRecipe implements AltarRecipe {
             Ingredient.CODEC_NONEMPTY.optionalFieldOf("catalyst").forGetter(r -> java.util.Optional.ofNullable(r.catalyst).filter(i -> !i.isEmpty())),
             com.mojang.serialization.Codec.intRange(1, Integer.MAX_VALUE).optionalFieldOf("time", 200).forGetter(r -> r.recipeTime),
             com.mojang.serialization.Codec.intRange(0, Integer.MAX_VALUE).optionalFieldOf("fuel_cost", 1).forGetter(r -> r.fuelCost),
+            com.mojang.serialization.Codec.intRange(0, Integer.MAX_VALUE / 800).optionalFieldOf("moondust_cost").forGetter(r -> r.totalFuelCost < 0 ? java.util.Optional.empty() : java.util.Optional.of(r.totalFuelCost / 800)),
             ResourceLocation.CODEC.optionalFieldOf("require_advancement").forGetter(r -> java.util.Optional.ofNullable(r.requireAdvancement))
         ).apply(instance, AltarShapelessRecipe::new));
         @Override public com.mojang.serialization.MapCodec<AltarShapelessRecipe> codec() { return CODEC; }
