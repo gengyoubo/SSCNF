@@ -40,7 +40,7 @@ import java.util.function.Supplier;
 // 剪切板上传下载
 // 二级菜单
 
-public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.TempFormTextureProcessor {
+public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.TempFormTextureProcessor, FormTextureUtils.TempFormModelProcessor, FormTextureUtils.TempCustomSkinConfigOverrider {
     private static final Component BOOL_BTN_ON = Component.translatable("text.cloth-config.boolean.value.true");
     private static final Component BOOL_BTN_OFF = Component.translatable("text.cloth-config.boolean.value.false");
     private static final Component CLICK_TO_MODIFY =
@@ -242,7 +242,7 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
 
     public void reloadFormIDName() {
         ResourceLocation form = this.getFormNoCheckUnlock();
-        boolean isUnlocked = FormColorData.client().isUnlock(form);
+        boolean isUnlocked = SscClientConfig.DISABLE_COLOR_UNLOCK_CHECK.get() || FormColorData.client().isUnlock(form);
         Component message = NONE_FROM_NAME_LABEL;
         if (!FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(form)) {
             message = CodexData.getContentText(form, CodexData.ContentType.NAME);
@@ -275,6 +275,14 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
         }
         formIDIndex = -1;
     }
+
+    @Override public ResourceLocation getPreviewForm() {
+        ResourceLocation form = getFormNoCheckUnlock();
+        if (SscClientConfig.DISABLE_COLOR_UNLOCK_CHECK.get() || FormColorData.client().isUnlock(form)) return form;
+        return minecraftClient.player != null ? FormManager.current(minecraftClient.player).id() : form;
+    }
+
+    @Override public boolean keepOriginalSkin() { return keepCustomSkin; }
 
     public ResourceLocation getFormNoCheckUnlock() {
         List<ResourceLocation> forms = new ArrayList<>(FormRegistry.forms().keySet());
@@ -741,6 +749,8 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
         } else {
             com.mojang.logging.LogUtils.getLogger().warn("Temp Texture System is already in use, dynamic texture rendering will not work");
         }
+        if (FormTextureUtils.tempFormModelProcessor == null) FormTextureUtils.tempFormModelProcessor = this;
+        if (FormTextureUtils.tempCustomSkinConfigOverrider == null) FormTextureUtils.tempCustomSkinConfigOverrider = this;
         if (instance != null) {
             com.mojang.logging.LogUtils.getLogger().error("FormColorSelectMenu is already in use, only one instance is allowed");
         }
@@ -1068,6 +1078,19 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
     }
 
     @Override
+    public void removed() {
+        if (FormTextureUtils.tempFormTextureProcessor == this) {
+            FormTextureUtils.tempFormTextureProcessor = null;
+            FormTextureUtils.useTempFormTexture = false;
+        }
+        if (FormTextureUtils.tempFormModelProcessor == this) FormTextureUtils.tempFormModelProcessor = null;
+        if (FormTextureUtils.tempCustomSkinConfigOverrider == this) FormTextureUtils.tempCustomSkinConfigOverrider = null;
+        if (instance == this) instance = null;
+        cleanColorSettingCache();
+        super.removed();
+    }
+
+    @Override
     public void onClose() {
         this.cleanColorSettingCache();
         if (this.isLockTempTextureSystem) {
@@ -1075,6 +1098,8 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
             FormTextureUtils.tempFormTextureProcessor = null;
             isLockTempTextureSystem = false;
         }
+        if (FormTextureUtils.tempFormModelProcessor == this) FormTextureUtils.tempFormModelProcessor = null;
+        if (FormTextureUtils.tempCustomSkinConfigOverrider == this) FormTextureUtils.tempCustomSkinConfigOverrider = null;
         instance = null;
         try {
             FormTextureUtils.ColorSetting setting = this.getColorSetting(true);

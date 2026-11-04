@@ -39,6 +39,16 @@ public final class SscCommonConfig {
     public static final ModConfigSpec.DoubleValue TRANSFORMATIVE_WOLF_SPAWN_CHANCE = spawnChance("transformative_wolf_spawn_chance");
     public static final ModConfigSpec.DoubleValue TRANSFORMATIVE_SPIDER_SPAWN_CHANCE = spawnChance("transformative_spider_spawn_chance");
 
+    public static final ModConfigSpec.BooleanValue IMMEDIATE_TRANSFORM = BUILDER
+            .comment("Skip transformation animation and apply form changes immediately.")
+            .define("transform.immediately", false);
+    public static final ModConfigSpec.BooleanValue FOOD_HABIT = BUILDER.define("gameplay.food_habit", true);
+    public static final ModConfigSpec.BooleanValue FULL_STACK_UPGRADE = BUILDER.define("gameplay.full_stack_upgrade", true);
+    public static final ModConfigSpec.BooleanValue ENABLE_INITIAL_FORM = BUILDER.define("initial_form.enabled", false);
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> INITIAL_FORMS = BUILDER
+            .comment("Weighted forms as namespace:id:weight; omitted weight defaults to 1.")
+            .defineList("initial_form.forms", List.of("shape-shifter-curse:original_before_enable:1"), value -> value instanceof String);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private SscCommonConfig() {

@@ -33,6 +33,14 @@ public final class PlayerFormData implements github.com.gengyoubo.sscnf.api.Play
     private static final String MANA_POOLS_KEY = "ManaPools";
     private static final String ITEM_STORES_KEY = "ItemStores";
 
+    private boolean initialFormPending = true;
+
+    public boolean takeInitialFormPending() {
+        boolean pending = initialFormPending;
+        initialFormPending = false;
+        return pending;
+    }
+
     private String formId = ORIGINAL_BEFORE_ENABLE_FORM;
     private String previousFormId = ORIGINAL_BEFORE_ENABLE_FORM;
     private String formGroupId = "shape-shifter-curse:base_form";
@@ -178,6 +186,7 @@ public final class PlayerFormData implements github.com.gengyoubo.sscnf.api.Play
 
     @Override
     public void copyFrom(github.com.gengyoubo.sscnf.api.PlayerFormData other) {
+        initialFormPending = false;
         setFormId(other.getFormId());
         setPreviousFormId(other.getPreviousFormId());
         setFormGroupId(other.getFormGroupId());
@@ -234,6 +243,7 @@ public final class PlayerFormData implements github.com.gengyoubo.sscnf.api.Play
 
     @Override
     public void deserializeNBT(CompoundTag tag) {
+        initialFormPending = false;
         if (tag.contains(FORM_ID_KEY)) {
             setFormId(tag.getString(FORM_ID_KEY));
         }

@@ -50,7 +50,7 @@ public final class FormClientRenderEvents {
     public static void renderPlayer(RenderPlayerEvent.Pre event) {
         Player player = event.getEntity();
         PlayerModel<?> vanillaModel = event.getRenderer().getModel();
-        FormDefinition form = FormManager.current(player);
+        FormDefinition form = renderedForm(player, event.getPackedLight());
         if (player.isSpectator() || player.isInvisible()) {
             setAllPartsVisible(vanillaModel);
             logRenderOutcome(player, form, "skip:spectator-or-invisible");
@@ -72,8 +72,9 @@ public final class FormClientRenderEvents {
                 : PlayerAnimatorCompat.firstPersonArms(player);
         // Vanilla never renders the camera entity's body in first person; the form's
         // first-person arms are handled separately by FormFirstPersonArmEvents.
-        if (!inventoryPreview && player == minecraft.player
-                && minecraft.options.getCameraType().isFirstPerson() && animatedArms == null) {
+        boolean selfFirstPerson = !inventoryPreview && player == minecraft.player
+                && minecraft.options.getCameraType().isFirstPerson() && animatedArms == null;
+        if (selfFirstPerson && !FirstPersonModelCompat.isEnabled()) {
             setAllPartsVisible(vanillaModel);
             logRenderOutcome(player, form, "skip:first-person-self");
             return;
@@ -96,6 +97,8 @@ public final class FormClientRenderEvents {
         // before vanilla ran, stranding the player invisible with no recovery signal.
         PoseStack poseStack = event.getPoseStack();
         FirstPersonGeoVisibility armVisibility = null;
+        software.bernie.geckolib.cache.object.GeoBone hiddenNeck = null;
+        boolean neckWasHidden = false;
         poseStack.pushPose();
         try {
             renderer.setPlayer(player);
@@ -125,6 +128,12 @@ public final class FormClientRenderEvents {
                 if (!hideArms && animatedArms.right()) visibleArms.add(geoModel.firstPersonArmBone(true));
                 armVisibility = new FirstPersonGeoVisibility(
                         geoModel.getBakedModel(geoModel.modelResource()).topLevelBones(), visibleArms);
+            }
+            if (selfFirstPerson) {
+                FormGeoModel geoModel = (FormGeoModel) renderer.getGeoModel();
+                geoModel.getBakedModel(geoModel.modelResource());
+                hiddenNeck = geoModel.neckRootBone().orElse(null);
+                if (hiddenNeck != null) { neckWasHidden = hiddenNeck.isHidden(); hiddenNeck.setHidden(true); }
             }
             // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
             // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
@@ -156,6 +165,7 @@ public final class FormClientRenderEvents {
             reportRenderFailure(player, form, exception);
         } finally {
             if (armVisibility != null) armVisibility.close();
+            if (hiddenNeck != null) hiddenNeck.setHidden(neckWasHidden);
             poseStack.popPose();
         }
     }
@@ -166,9 +176,20 @@ public final class FormClientRenderEvents {
     public static void renderPlayerPost(RenderPlayerEvent.Post event) {
         if (event.getEntity() instanceof Player) {
             setAllPartsVisible(event.getRenderer().getModel());
-            FormGeoRenderer renderer = rendererFor(FormManager.current(event.getEntity()));
+            FormGeoRenderer renderer = rendererFor(renderedForm(event.getEntity(), event.getPackedLight()));
             if (renderer != null) renderer.getAnimatable().clearPreparedPose();
         }
+    }
+
+    private static FormDefinition renderedForm(Player player, int packedLight) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen != null && player == minecraft.player && packedLight == LightTexture.FULL_BRIGHT
+                && FormTextureUtils.tempFormModelProcessor != null) {
+            var preview = FormTextureUtils.tempFormModelProcessor.getPreviewForm();
+            var form = preview == null ? null : github.com.gengyoubo.sscnf.form.FormRegistry.get(preview);
+            if (form != null) return form;
+        }
+        return FormManager.current(player);
     }
 
     private static final String[] VANILLA_PART_NAMES = {"hat", "head", "body", "jacket",

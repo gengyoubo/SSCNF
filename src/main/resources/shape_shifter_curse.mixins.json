@@ -6,6 +6,9 @@
     "compatibilityLevel": "JAVA_21",
     "mixins": [
         "LivingEntityMixin",
+        "SmithingFullStackMixin",
+        "ItemCombinerQuickMoveMixin",
+        "accessor.SmithingRecipeAccessor",
         "FoodDataPowerMixin",
         "ArmorSlotRestrictionMixin",
         "EntityLootingMixin",
@@ -44,6 +47,8 @@
         "integration.ToughAsNailsDrinkInWorldPacketMixin"
     ],
     "client": [
+        "accessor.ItemInHandRendererInvoker",
+        "client.AbstractClientPlayerSkinMixin",
         "client.CameraBobbingMixin",
         "client.PowerEntityGlowMixin",
         "client.PowerEntityGlowColorMixin",

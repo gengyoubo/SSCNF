@@ -40,6 +40,10 @@ public final class PlayerDataEvents {
     @SubscribeEvent
     public static void playerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new github.com.gengyoubo.sscnf.network.GameplayConfigPacket(
+                    github.com.gengyoubo.sscnf.other.config.SscCommonConfig.FOOD_HABIT.get(),
+                    github.com.gengyoubo.sscnf.other.config.SscCommonConfig.FULL_STACK_UPGRADE.get()));
+            github.com.gengyoubo.sscnf.other.initial.InitialFormService.applyOnce(player);
             SscAdvancementTriggers.ON_FIRST_JOIN_WITH_MOD.trigger(player);
             ModNetwork.sendFormSync(player);
             MovementPowerService.synchronizeForcedSneaking(player);

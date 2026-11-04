@@ -62,6 +62,13 @@ public final class SscClientConfig {
     public static final ModConfigSpec.IntValue MANA_OFFSET_X = BUILDER.defineInRange("hud.mana_offset_x", 100, -10000, 10000);
     public static final ModConfigSpec.IntValue MANA_OFFSET_Y = BUILDER.defineInRange("hud.mana_offset_y", -17, -10000, 10000);
 
+    public static final ModConfigSpec.BooleanValue CHANGE_FPM_CONFIG = BUILDER.define("render.enable_change_fpm_config", true);
+    public static final ModConfigSpec.BooleanValue DISABLE_COLOR_UNLOCK_CHECK = BUILDER.define("custom.disable_color_unlock_check", false);
+    public static final ModConfigSpec.BooleanValue FCS_USE_V1_MENU = BUILDER.define("custom.fcs_use_v1_menu", false);
+    public static final ModConfigSpec.BooleanValue BIG_CODEX = BUILDER
+            .comment("Use the larger codex layout when the GUI is at least 700 by 440 pixels.")
+            .define("codex.big_screen", false);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private SscClientConfig() {

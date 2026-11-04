@@ -29,8 +29,9 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
 
     @Override
     protected void init() {
-        float scale = 0.5F;
-        int bookScale = 1;
+        this.widgetList.clear();
+        float scale = 0.5F * bookScale();
+        int bookScale = bookScale();
         int bookPosX = this.width / 2 - (BOOK_SIZE_X * bookScale) / 2;
         int bookPosY = this.height / 2 - (BOOK_SIZE_Y * bookScale) / 2;
         int defaultTextColor = 0x222222;
@@ -98,13 +99,20 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
                 .size(nextPageButtonSizeX, nextPageButtonSizeY).build());
     }
 
+    private int bookScale() {
+        return github.com.gengyoubo.sscnf.other.config.SscClientConfig.BIG_CODEX.get()
+                && width >= BOOK_SIZE_X * 2 && height >= BOOK_SIZE_Y * 2 ? 2 : 1;
+    }
+
     private void renderBook(GuiGraphics graphics) {
-        int finalBookSizeX = BOOK_SIZE_X;
-        int finalBookSizeY = BOOK_SIZE_Y;
-        int bookPosX = this.width / 2 - finalBookSizeX / 2;
-        int bookPosY = this.height / 2 - finalBookSizeY / 2;
-        graphics.blit(PAGE_TEXTURE, bookPosX, bookPosY, 0, 0,
-                finalBookSizeX, finalBookSizeY, finalBookSizeX, finalBookSizeY);
+        int scale = bookScale();
+        int x = (width - BOOK_SIZE_X * scale) / 2;
+        int y = (height - BOOK_SIZE_Y * scale) / 2;
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0);
+        graphics.pose().scale(scale, scale, 1);
+        graphics.blit(PAGE_TEXTURE, 0, 0, 0, 0, BOOK_SIZE_X, BOOK_SIZE_Y, BOOK_SIZE_X, BOOK_SIZE_Y);
+        graphics.pose().popPose();
     }
 
     private void nextPage() {
@@ -113,7 +121,7 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
 
     private Button buildDetailScreenButton(int inBookPosX, int inBookPosY,
                                            Component detailText) {
-        int bookScale = 1;
+        int bookScale = bookScale();
         int bookPosX = this.width / 2 - (BOOK_SIZE_X * bookScale) / 2;
         int bookPosY = this.height / 2 - (BOOK_SIZE_Y * bookScale) / 2;
         int fixedPosX = bookPosX + inBookPosX * bookScale;

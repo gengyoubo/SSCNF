@@ -1007,8 +1007,9 @@ public final class FormPowerRuntime {
                     && stack.is(net.minecraft.tags.ItemTags.MEAT);
             case "shape-shifter-curse:is_vegan_ex" -> isVegan(stack, condition);
             case "shape-shifter-curse:is_weapon" -> isWeapon(stack);
-            case "shape-shifter-curse:is_morph_scale_item", "shape-shifter-curse:is_morph_scale_food"
-                    -> MorphScaleItems.isMorphScaleItem(stack);
+            case "shape-shifter-curse:is_morph_scale_item" -> MorphScaleItems.isMorphScaleItem(stack);
+            case "shape-shifter-curse:is_morph_scale_food" -> !github.com.gengyoubo.sscnf.other.config.GameplayConfigState.foodHabitEnabled()
+                    || MorphScaleItems.isMorphScaleFood(stack);
             case "shape_shifter_curse:armor_value" -> stack.getItem() instanceof net.minecraft.world.item.ArmorItem armor
                     && compare(armor.getDefense(), condition);
             case "shape_shifter_curse:harvest_level" -> {

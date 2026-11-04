@@ -45,6 +45,7 @@ public final class ModPotions {
     @net.neoforged.bus.api.SubscribeEvent
     public static void registerBrewing(net.neoforged.neoforge.event.brewing.RegisterBrewingRecipesEvent event) {
         var builder = event.getBuilder();
+        builder.addRecipe(github.com.gengyoubo.sscnf.other.brew.DynamicBrewingRecipes.DELEGATE);
         add(builder, Potions.AWKWARD, ModItems.MOONDUST_MATRIX.get(), MOONDUST);
         add(builder, MOONDUST, Items.POINTED_DRIPSTONE, TO_BAT);
         add(builder, MOONDUST, Items.BIG_DRIPLEAF, TO_AXOLOTL);

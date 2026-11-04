@@ -722,6 +722,12 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         return right ? "bipedRightArm" : "bipedLeftArm";
     }
 
+    public java.util.Optional<software.bernie.geckolib.cache.object.GeoBone> neckRootBone() {
+        NeckConfig neck = renderConfig().neck;
+        if (neck == null) return java.util.Optional.empty();
+        return getBone(neck.chain.isEmpty() ? neck.headBone : neck.chain.get(0));
+    }
+
     private record ExtraBoneMapping(String animBone, String geoBone) { }
 
     /**

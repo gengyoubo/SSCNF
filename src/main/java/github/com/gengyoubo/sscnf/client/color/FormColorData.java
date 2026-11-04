@@ -343,6 +343,25 @@ public final class FormColorData {
         return "#" + toHex(colorSettingToBytes(data));
     }
 
+    public String getNameLocalFormSlot(ResourceLocation formId, int index) {
+        List<String> names = formLocalNames.get(formId);
+        return index >= 0 && names != null && index < names.size() ? names.get(index) : "";
+    }
+    public void setNameLocalFormSlot(ResourceLocation formId, int index, String name) {
+        if (index < 0 || index > localSlotCount) return;
+        List<String> names = formLocalNames.computeIfAbsent(formId, key -> new ArrayList<>());
+        while (names.size() <= index) names.add("");
+        names.set(index, name);
+    }
+    public String getNameGlobalSlot(int index) { return index >= 0 && index < formGlobalNames.size() ? formGlobalNames.get(index) : ""; }
+    public void setNameGlobalSlot(int index, String name) {
+        if (index < 0 || index > globalSlotCount) return;
+        while (formGlobalNames.size() <= index) formGlobalNames.add("");
+        formGlobalNames.set(index, name);
+    }
+    public String getNameDefaultSlot(ResourceLocation formId) { return formDefaultNames.getOrDefault(formId, ""); }
+    public void setNameDefaultSlot(ResourceLocation formId, String name) { formDefaultNames.put(formId, name); }
+
     public String v2GetNameGlobalSlot(int index) {
         if (index < v2GlobalNames.size()) {
             return v2GlobalNames.get(index);

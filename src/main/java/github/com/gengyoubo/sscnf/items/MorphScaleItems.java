@@ -21,6 +21,10 @@ public final class MorphScaleItems {
         return !stack.isEmpty() && (stack.is(ITEM_TAG) || hasUpgradeMarker(stack));
     }
 
+    public static boolean isMorphScaleFood(ItemStack stack) {
+        return isMorphScaleItem(stack) || (!stack.isEmpty() && stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getBoolean("MorphScaleFood"));
+    }
+
     public static boolean hasUpgradeMarker(ItemStack stack) {
         if (stack.isEmpty()) return false;
         var tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();

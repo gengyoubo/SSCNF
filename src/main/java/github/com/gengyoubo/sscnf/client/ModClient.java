@@ -55,6 +55,14 @@ public final class ModClient {
     }
 
     @SubscribeEvent
+    public static void addPlayerLayers(EntityRenderersEvent.AddLayers event) {
+        for (var skin : event.getSkins()) {
+            net.minecraft.client.renderer.entity.player.PlayerRenderer renderer = event.getSkin(skin);
+            if (renderer != null) renderer.addLayer(new github.com.gengyoubo.sscnf.client.render.FeralFirstPersonItemLayer(renderer));
+        }
+    }
+
+    @SubscribeEvent
     public static void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
         event.registerLayerDefinition(AnubisWolfMinionRenderer.LAYER,
                 AnubisWolfMinionRenderer::createBodyLayer);

@@ -29,6 +29,19 @@ public final class FormTextureUtils {
 
     public static boolean useTempFormTexture = false;
     public static TempFormTextureProcessor tempFormTextureProcessor = null;
+    public interface TempFormModelProcessor { @Nullable ResourceLocation getPreviewForm(); }
+    public interface TempCustomSkinConfigOverrider { boolean keepOriginalSkin(); }
+    public static TempFormModelProcessor tempFormModelProcessor;
+    public static TempCustomSkinConfigOverrider tempCustomSkinConfigOverrider;
+
+    public static boolean usesBaseSkin(Player player) {
+        if (github.com.gengyoubo.sscnf.form.FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(
+                github.com.gengyoubo.sscnf.form.FormManager.current(player).id())) return false;
+        if (tempCustomSkinConfigOverrider != null && player == Minecraft.getInstance().player)
+            return !tempCustomSkinConfigOverrider.keepOriginalSkin();
+        return !SscApi.currentSkin(player).map(PlayerSkinData::isKeepOriginalSkin).orElse(false);
+    }
+
 
     private FormTextureUtils() {
     }

@@ -52,6 +52,7 @@ public final class ShapeShifterCurseNeoForge {
         ModEffects.EFFECTS.register(modBus);
         ModPotions.POTIONS.register(modBus);
         modBus.addListener(this::commonSetup);
+        github.com.gengyoubo.sscnf.other.initial.InitialFormService.initialize();
         SscAdvancementTriggers.initialize(modBus);
         FormManager.initialize();
         github.com.gengyoubo.sscnf.other.perk.BuiltinPerks.initialize();

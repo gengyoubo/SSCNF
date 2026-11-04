@@ -55,6 +55,10 @@ public final class TransformManager {
         if (target == null) {
             return false;
         }
+        if (github.com.gengyoubo.sscnf.other.config.SscCommonConfig.IMMEDIATE_TRANSFORM.get()) {
+            cancel(player);
+            return immediatelyTransform(player, targetId);
+        }
         PlayerTransformData data = getPlayerData(player);
         data.transformTimer = 0;
         data.transformStartForm = FormManager.current(player).id();

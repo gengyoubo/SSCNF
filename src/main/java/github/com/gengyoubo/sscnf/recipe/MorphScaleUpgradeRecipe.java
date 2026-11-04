@@ -52,7 +52,7 @@ public final class MorphScaleUpgradeRecipe implements SmithingRecipe {
     @Override
     public ItemStack assemble(net.minecraft.world.item.crafting.SmithingRecipeInput container, net.minecraft.core.HolderLookup.Provider access) {
         ItemStack result = container.getItem(1).copy();
-        result.setCount(1);
+        if (!github.com.gengyoubo.sscnf.other.config.GameplayConfigState.fullStackUpgrade()) result.setCount(1);
         net.minecraft.world.item.component.CustomData.update(net.minecraft.core.component.DataComponents.CUSTOM_DATA, result, tag -> tag.putBoolean(MorphScaleItems.MARKER_KEY, true));
         return result;
     }
