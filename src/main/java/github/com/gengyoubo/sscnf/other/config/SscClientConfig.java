@@ -61,6 +61,9 @@ public final class SscClientConfig {
     public static final ModConfigSpec.IntValue MANA_POSITION = BUILDER.defineInRange("hud.mana_position", 8, 1, 9);
     public static final ModConfigSpec.IntValue MANA_OFFSET_X = BUILDER.defineInRange("hud.mana_offset_x", 100, -10000, 10000);
     public static final ModConfigSpec.IntValue MANA_OFFSET_Y = BUILDER.defineInRange("hud.mana_offset_y", -17, -10000, 10000);
+    public static final ModConfigSpec.IntValue MAGIC_POSITION = BUILDER.defineInRange("hud.magic_position", 8, 1, 9);
+    public static final ModConfigSpec.IntValue MAGIC_OFFSET_X = BUILDER.defineInRange("hud.magic_offset_x", -200, -10000, 10000);
+    public static final ModConfigSpec.IntValue MAGIC_OFFSET_Y = BUILDER.defineInRange("hud.magic_offset_y", -35, -10000, 10000);
 
     public static final ModConfigSpec.BooleanValue CHANGE_FPM_CONFIG = BUILDER.define("render.enable_change_fpm_config", true);
     public static final ModConfigSpec.BooleanValue DISABLE_COLOR_UNLOCK_CHECK = BUILDER.define("custom.disable_color_unlock_check", false);

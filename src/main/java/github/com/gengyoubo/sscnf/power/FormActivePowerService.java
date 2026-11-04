@@ -58,6 +58,7 @@ public final class FormActivePowerService {
         WATER_LAUNCH_GRACE.remove(id);
         AirJumpService.clearTransient(player);
         FrostDiveService.clear(player);
+        SurfaceGrappleService.cancel(player);
     }
 
     public static void clearClientState() {
@@ -151,10 +152,12 @@ public final class FormActivePowerService {
             });
         }
         Map<String, Boolean> keys = PRESSED_KEYS.get(player.getUUID());
-        if (keys == null) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
             return;
         }
-        if (!(player instanceof ServerPlayer serverPlayer)) {
+        // Flight continues with no key state, so this runs before the null check below.
+        SurfaceGrappleService.tick(serverPlayer, keys == null ? Map.of() : keys);
+        if (keys == null) {
             return;
         }
         keys.forEach((key, pressed) -> {
@@ -167,6 +170,10 @@ public final class FormActivePowerService {
 
     public static boolean hasMana(Player player, float amount) {
         return mana(player) >= amount;
+    }
+
+    public static boolean hasWebMana(Player player) {
+        return WEB_RESOURCE.equals(manaType(player));
     }
 
     public static boolean hasFamiliarFoxMana(Player player) {

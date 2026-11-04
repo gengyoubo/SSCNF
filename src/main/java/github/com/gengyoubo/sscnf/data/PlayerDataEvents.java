@@ -40,6 +40,7 @@ public final class PlayerDataEvents {
     @SubscribeEvent
     public static void playerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            github.com.gengyoubo.sscnf.power.SurfaceGrappleService.recoverAfterLogin(player);
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new github.com.gengyoubo.sscnf.network.GameplayConfigPacket(
                     github.com.gengyoubo.sscnf.other.config.SscCommonConfig.FOOD_HABIT.get(),
                     github.com.gengyoubo.sscnf.other.config.SscCommonConfig.FULL_STACK_UPGRADE.get()));

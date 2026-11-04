@@ -38,7 +38,9 @@ Minecraft minecraft = Minecraft.getInstance();
             clipAtLedgeDisabled = false;
         }
         for (KeyMapping key : FormKeyMappings.ACTIVE_SKILLS) {
-            boolean pressed = key.isDown();
+            int index = FormKeyMappings.ACTIVE_SKILLS.indexOf(key);
+            boolean pressed = key.isDown() || index < 6
+                    && github.com.gengyoubo.sscnf.client.render.MagicHudRenderer.virtualPressed(index);
             boolean previous = LAST_STATE.getOrDefault(key, false);
             if (pressed != previous) {
                 net.neoforged.neoforge.network.PacketDistributor.sendToServer(new ActivePowerKeyPacket(key.getName(), pressed));

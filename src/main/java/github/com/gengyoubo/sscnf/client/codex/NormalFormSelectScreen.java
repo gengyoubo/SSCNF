@@ -82,6 +82,8 @@ public class NormalFormSelectScreen extends Screen {
     protected void init() {
         super.init();
         availableForms = getAvailableForms();
+        // init() reruns on resize; drop the previous widgets so indices stay aligned with buttonForms.
+        buttonWidgetList.clear();
         // One column of 8, two columns total. Change PAGE_SIZE together with the count.
         int buttonWidth = 180;
         int buttonHeight = 20;
