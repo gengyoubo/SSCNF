@@ -24,8 +24,8 @@ public final class InstinctHudRenderer {
         if (minecraft.player == null || minecraft.options.hideGui || !InstinctClientState.visible()) return;
 
         GuiGraphics graphics = event.getGuiGraphics();
-        int x = (graphics.guiWidth() + 182) / 2 + 5;
-        int y = graphics.guiHeight() - 15;
+        int x = HudPosition.x(graphics.guiWidth(), github.com.gengyoubo.sscnf.other.config.SscClientConfig.INSTINCT_POSITION.get(), github.com.gengyoubo.sscnf.other.config.SscClientConfig.INSTINCT_OFFSET_X.get());
+        int y = HudPosition.y(graphics.guiHeight(), github.com.gengyoubo.sscnf.other.config.SscClientConfig.INSTINCT_POSITION.get(), github.com.gengyoubo.sscnf.other.config.SscClientConfig.INSTINCT_OFFSET_Y.get());
         int border = InstinctClientState.locked() ? 0xFFE95C9D : 0xFFD9A2C1;
         int fill = InstinctClientState.locked() ? 0xFF74304F : 0xFFE83D9A;
         float valueRatio = Math.max(0.0F, Math.min(1.0F, InstinctClientState.value() / 100.0F));

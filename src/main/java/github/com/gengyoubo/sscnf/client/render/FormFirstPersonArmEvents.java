@@ -58,6 +58,7 @@ public final class FormFirstPersonArmEvents {
             return;
         }
 
+        if (!github.com.gengyoubo.sscnf.other.config.SscClientConfig.FIRST_PERSON_FORM_ARMS.get()) return;
         FormDefinition form = FormManager.current(player);
         if (!form.hasFlag("special_form") && form.stage() <= 0) {
             return;
@@ -141,6 +142,7 @@ public final class FormFirstPersonArmEvents {
     }
 
     public static boolean shouldHideArms(AbstractClientPlayer player) {
+        if (github.com.gengyoubo.sscnf.other.config.SscClientConfig.IGNORE_HIDE_ARMS.get()) return false;
         final boolean[] hide = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!hide[0] && "shape-shifter-curse:no_render_arm".equals(FormPowerRegistry.typeOf(power))

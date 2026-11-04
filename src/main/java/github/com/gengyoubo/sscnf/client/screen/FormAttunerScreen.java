@@ -159,7 +159,13 @@ public final class FormAttunerScreen extends Screen {
             tooltip.add(Component.translatable(perkKey(node.perkId, "description")));
             tooltip.add(Component.translatable(KEY + "perk_kind." + perk.kind().name().toLowerCase(java.util.Locale.ROOT)));
             if (!perk.implemented()) tooltip.add(Component.translatable(KEY + "purchase.not_implemented"));
-            else tooltip.add(Component.translatable(KEY + "perk_cost", perk.requiredAttunerLevel(), perk.experienceLevels()));
+            else {
+                tooltip.add(Component.translatable(KEY + "perk_attuner_level", perk.requiredAttunerLevel()));
+                if (perk.experienceLevels() > 0) tooltip.add(Component.translatable(KEY + "perk_cost_levels", perk.experienceLevels()));
+                if (perk.experiencePoints() > 0) tooltip.add(Component.translatable(KEY + "perk_cost_points", perk.experiencePoints()));
+                if (perk.itemCost() > 0 && perk.costItem() != null) tooltip.add(Component.translatable(KEY + "perk_cost_items", perk.itemCost(),
+                        Component.translatable("item." + perk.costItem().getNamespace() + "." + perk.costItem().getPath())));
+            }
             if (unlockedPerks.contains(node.perkId)) tooltip.add(Component.translatable(KEY + "perk_unlocked"));
             graphics.renderComponentTooltip(font, tooltip, mouseX, mouseY);
             return;
@@ -178,7 +184,10 @@ public final class FormAttunerScreen extends Screen {
     }
 
     private static String perkKey(ResourceLocation perkId, String suffix) {
-        return "perk." + perkId.getNamespace() + "." + perkId.getPath() + "." + suffix;
+        String builtin = "ssc_perk." + perkId.getNamespace() + "." + perkId.getPath() + "."
+                + (suffix.equals("description") ? "desc" : suffix);
+        return net.minecraft.client.resources.language.I18n.exists(builtin) ? builtin
+                : "perk." + perkId.getNamespace() + "." + perkId.getPath() + "." + suffix;
     }
 
     @Override

@@ -21,12 +21,18 @@ public final class AccessoryPowers {
         if (DATA.putIfAbsent(item, data) != null) throw new IllegalStateException("Duplicate accessory powers: " + item);
     }
     public static List<ResourceLocation> effectivePowerIds(Player player, List<ResourceLocation> base) {
+        List<ResourceLocation> accessories = new ArrayList<>();
+        for (var slot : getAllAccessory(player)) accessories.add(BuiltInRegistries.ITEM.getKey(slot.getB().getItem()));
+        return effectivePowerIdsFor(FormManager.current(player).id(), base, accessories);
+    }
+
+    public static List<ResourceLocation> effectivePowerIdsFor(ResourceLocation form, List<ResourceLocation> base,
+                                                                List<ResourceLocation> accessories) {
         var effective = new LinkedHashSet<>(base);
         var additions = new LinkedHashSet<ResourceLocation>();
         var removals = new LinkedHashSet<ResourceLocation>();
-        var form = FormManager.current(player).id();
-        for (var slot : getAllAccessory(player)) {
-            var data = DATA.get(BuiltInRegistries.ITEM.getKey(slot.getB().getItem()));
+        for (var item : accessories) {
+            var data = DATA.get(item);
             if (data == null) continue;
             additions.addAll(data.powers()); additions.addAll(data.allForms().add()); removals.addAll(data.allForms().remove());
             var changes = data.forms().get(form);

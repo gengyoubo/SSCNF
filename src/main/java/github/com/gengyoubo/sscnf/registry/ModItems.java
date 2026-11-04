@@ -28,6 +28,33 @@ public final class ModItems {
             ShapeShifterCurseNeoForge.RESOURCE_NAMESPACE
     );
 
+    public static final DeferredHolder<Item, ? extends Item> GRAPHENE_BLADE = ITEMS.register("graphene_blade",
+            () -> new net.minecraft.world.item.SwordItem(net.minecraft.world.item.Tiers.DIAMOND,
+                    new Item.Properties().durability(128).attributes(net.minecraft.world.item.SwordItem.createAttributes(net.minecraft.world.item.Tiers.DIAMOND, 4, -2.4F))));
+    public static final DeferredHolder<Item, ? extends Item> COMPOUND_KINETIC_BOW = ITEMS.register("compound_kinetic_bow",
+            () -> new net.minecraft.world.item.BowItem(new Item.Properties().durability(768)));
+    public static final DeferredHolder<Item, ? extends Item> HEALING_CHARM = ITEMS.register("healing_charm_paper", () -> new github.com.gengyoubo.sscnf.items.PotionCharmItem(net.minecraft.world.item.alchemy.Potions.STRONG_HEALING));
+    public static final DeferredHolder<Item, ? extends Item> HARMING_CHARM = ITEMS.register("harming_charm_paper", () -> new github.com.gengyoubo.sscnf.items.PotionCharmItem(net.minecraft.world.item.alchemy.Potions.STRONG_HARMING));
+    public static final DeferredHolder<Item, ? extends Item> POISON_CHARM = ITEMS.register("poison_charm_paper", () -> new github.com.gengyoubo.sscnf.items.PotionCharmItem(net.minecraft.world.item.alchemy.Potions.STRONG_POISON));
+    public static final java.util.List<DeferredHolder<Item, ? extends Item>> BETA_ITEMS = registerBetaItems();
+    private static java.util.List<DeferredHolder<Item, ? extends Item>> registerBetaItems() {
+        var items = new java.util.ArrayList<DeferredHolder<Item, ? extends Item>>();
+        for (String name : new String[]{"amulet_bracelet_plus", "attach_hook_plus", "charm_of_hollow_fang_plus",
+                "charm_of_night_crystal_plus", "charm_of_reverse_thermometer_plus", "collar_of_whiskers_plus",
+                "digestion_fiber_ball_plus", "fountain_belt_plus", "frost_pawglove_plus", "venom_spindle_plus", "withered_bandage_plus"}) {
+            items.add(ITEMS.register(name, () -> new github.com.gengyoubo.sscnf.items.accessory.FormTrinket(new Item.Properties().rarity(net.minecraft.world.item.Rarity.RARE))));
+        }
+        for (String name : new String[]{"dune_catalyst_core", "foxfire_catalyst_core", "frost_catalyst_core", "jungle_catalyst_core", "night_catalyst_core", "surge_catalyst_core", "web_catalyst_core"}) {
+            items.add(ITEMS.register(name, () -> new TooltipItem(new Item.Properties(), "item.shape-shifter-curse." + name + ".tooltip", ChatFormatting.YELLOW)));
+        }
+        items.add(ITEMS.register("bottled_snowfall_plus", () -> new BottledSnowfall(
+                github.com.gengyoubo.sscnf.items.tools.BottledSnowfallToolMaterial.INSTANCE, 1, 1.0F,
+                new Item.Properties().stacksTo(1).rarity(net.minecraft.world.item.Rarity.RARE))));
+        for (String name : new String[]{"glint_prism", "explosive_charm_paper"})
+            items.add(ITEMS.register(name, () -> new Item(new Item.Properties())));
+        return java.util.List.copyOf(items);
+    }
+
     public static final DeferredHolder<Item, ? extends Item> BOOK_OF_SHAPE_SHIFTER = ITEMS.register(
             "book_of_shape_shifter",
             () -> new BookOfShapeShifterItem(new Item.Properties())

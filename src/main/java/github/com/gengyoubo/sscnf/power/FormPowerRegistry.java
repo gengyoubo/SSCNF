@@ -75,18 +75,24 @@ public final class FormPowerRegistry {
     /** Form powers after unlocked perks, before player equipment changes. */
     public static List<ResourceLocation> idsForPlayerBase(Player player) {
         ResourceLocation formId = FormManager.current(player).id();
-        LinkedHashSet<ResourceLocation> added = new LinkedHashSet<>(idsForForm(formId));
+        return github.com.gengyoubo.sscnf.api.SscApi.currentForm(player)
+                .map(data -> applyPerks(formId, data.getFormGroupId(), data.getUnlockedPerks(), idsForForm(formId)))
+                .orElseGet(() -> idsForForm(formId));
+    }
+
+    static List<ResourceLocation> applyPerks(ResourceLocation formId, String groupId,
+                                              Set<ResourceLocation> unlocked, List<ResourceLocation> basePowers) {
+        LinkedHashSet<ResourceLocation> added = new LinkedHashSet<>(basePowers);
         LinkedHashSet<ResourceLocation> removed = new LinkedHashSet<>();
-        github.com.gengyoubo.sscnf.api.SscApi.currentForm(player).ifPresent(data ->
-                data.getUnlockedPerks().stream().sorted().forEach(id -> {
-                    var tree = SscJavaRegistries.perkTreeFor(id).orElse(null);
-                    var perk = SscJavaRegistries.perk(id).orElse(null);
-                    if (tree != null && perk != null && perk.implemented() && tree.matchesForm(formId)
-                            && tree.formGroupId().toString().equals(data.getFormGroupId())) {
-                        added.addAll(perk.powersAdded());
-                        removed.addAll(perk.powersRemoved());
-                    }
-                }));
+        unlocked.stream().sorted().forEach(id -> {
+            var tree = SscJavaRegistries.perkTreeFor(id).orElse(null);
+            var perk = SscJavaRegistries.perk(id).orElse(null);
+            if (tree != null && perk != null && perk.implemented() && tree.matchesForm(formId)
+                    && tree.formGroupId().toString().equals(groupId)) {
+                added.addAll(perk.powersAdded());
+                removed.addAll(perk.powersRemoved());
+            }
+        });
         added.removeAll(removed);
         return List.copyOf(added);
     }

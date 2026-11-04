@@ -25,6 +25,11 @@ import github.com.gengyoubo.sscnf.registry.ModBlocks;
 @SuppressWarnings("removal")
 @net.neoforged.fml.common.EventBusSubscriber(modid = ShapeShifterCurseNeoForge.MOD_ID, bus = net.neoforged.fml.common.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class ModClient {
+    public static void registerConfigScreen(net.neoforged.fml.ModContainer container) {
+        container.registerExtensionPoint(net.neoforged.neoforge.client.gui.IConfigScreenFactory.class,
+                (mod, parent) -> new net.neoforged.neoforge.client.gui.ConfigurationScreen(container, parent));
+    }
+
     @SubscribeEvent
     public static void registerScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
         event.register(ModMenuTypes.ALTAR.get(), AltarScreen::new);

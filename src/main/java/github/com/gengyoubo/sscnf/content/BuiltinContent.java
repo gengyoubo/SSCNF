@@ -7,6 +7,7 @@ public final class BuiltinContent {
     private BuiltinContent() {}
     public static void register() {
         BuiltinAccessories.register();
+        BuiltinBetaAccessories.register();
         BuiltinPowers01.register();
         BuiltinPowers02.register();
         BuiltinPowers03.register();

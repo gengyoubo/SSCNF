@@ -1075,6 +1075,8 @@ public final class FormPowerRuntime {
             result = block != null && state.is(block);
         } else if ("shape_shifter_curse:block_state".equals(type)) {
             result = matchesBlockProperty(state, condition);
+        } else if ("shape_shifter_curse:light_level".equals(type)) {
+            result = compare(actor.level().getMaxLocalRawBrightness(pos), condition);
         } else if ("shape_shifter_curse:hardness".equals(type)) {
             result = compare(state.getDestroySpeed(actor.level(), pos), condition);
         } else if ("shape_shifter_curse:replacable".equals(type)) {

@@ -31,6 +31,9 @@ public final class ModEntities {
             () -> EntityType.Builder.<WebBulletEntity>of(WebBulletEntity::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F).clientTrackingRange(10).updateInterval(1).build("web_bullet"));
 
+    public static final java.util.function.Supplier<EntityType<github.com.gengyoubo.sscnf.entity.PotionCharmArrowEntity>> POTION_CHARM_ARROW = ENTITIES.register("potion_charm_arrow", () -> EntityType.Builder.of(github.com.gengyoubo.sscnf.entity.PotionCharmArrowEntity::new, MobCategory.MISC).sized(0.5F, 0.5F).clientTrackingRange(10).updateInterval(1).build("potion_charm_arrow"));
+    public static final java.util.function.Supplier<EntityType<github.com.gengyoubo.sscnf.entity.ManaReservoirEntity>> MANA_RESERVOIR = ENTITIES.register("mana_reservoir", () -> EntityType.Builder.of(github.com.gengyoubo.sscnf.entity.ManaReservoirEntity::new, MobCategory.MISC).sized(0.5F, 0.5F).clientTrackingRange(8).build("mana_reservoir"));
+
     public static final java.util.function.Supplier<EntityType<AnubisWolfMinionEntity>> ANUBIS_WOLF_MINION = ENTITIES.register(
             "anubis_wolf_minion", () -> EntityType.Builder.of(AnubisWolfMinionEntity::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F).build("anubis_wolf_minion"));
@@ -48,6 +51,7 @@ public final class ModEntities {
 
     @SubscribeEvent
     public static void registerAttributes(EntityAttributeCreationEvent event) {
+        event.put(MANA_RESERVOIR.get(), github.com.gengyoubo.sscnf.entity.ManaReservoirEntity.createAttributes().build());
         event.put(ANUBIS_WOLF_MINION.get(), AnubisWolfMinionEntity.createAttributes().build());
         event.put(TRANSFORMATIVE_BAT.get(), TransformativeBatEntity.createAttributes().build());
         event.put(TRANSFORMATIVE_AXOLOTL.get(), TransformativeAxolotlEntity.createAttributes().build());

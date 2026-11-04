@@ -31,6 +31,9 @@ public final class ShapeShifterCurseNeoForge {
 
     @SuppressWarnings("removal")
     public ShapeShifterCurseNeoForge(IEventBus modBus, ModContainer container) {
+        if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient()) {
+            github.com.gengyoubo.sscnf.client.ModClient.registerConfigScreen(container);
+        }
         github.com.gengyoubo.sscnf.data.PlayerAttachments.register(modBus);
         container.registerConfig(ModConfig.Type.CLIENT, SscClientConfig.SPEC,
                 "shape-shifter-curse-client.toml");

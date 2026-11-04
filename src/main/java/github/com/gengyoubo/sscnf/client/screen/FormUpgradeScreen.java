@@ -223,8 +223,13 @@ public final class FormUpgradeScreen extends Screen {
             graphics.drawWordWrap(font, Component.translatable(KEY + "purchase.not_implemented"), ix, baseY + 125, 91, 0xFFFFB5A7);
             return;
         }
-        int cost = perk == null ? 0 : perk.experienceLevels();
-        graphics.drawString(font, Component.translatable(KEY + "perk_xp", cost), ix, baseY + 148, 0xFF9FEFFF);
+        if (perk != null) {
+            Component cost = perk.experiencePoints() > 0 ? Component.translatable(KEY + "perk_cost_points", perk.experiencePoints())
+                    : perk.itemCost() > 0 && perk.costItem() != null ? Component.translatable(KEY + "perk_cost_items", perk.itemCost(),
+                    Component.translatable("item." + perk.costItem().getNamespace() + "." + perk.costItem().getPath()))
+                    : Component.translatable(KEY + "perk_cost_levels", perk.experienceLevels());
+            graphics.drawWordWrap(font, cost, ix, baseY + 142, 91, 0xFF9FEFFF);
+        }
     }
 
     private boolean isSelectable(ResourceLocation perkId) {
@@ -357,7 +362,10 @@ public final class FormUpgradeScreen extends Screen {
     }
 
     private static String perkKey(ResourceLocation perkId, String suffix) {
-        return "perk." + perkId.getNamespace() + "." + perkId.getPath() + "." + suffix;
+        String builtin = "ssc_perk." + perkId.getNamespace() + "." + perkId.getPath() + "."
+                + (suffix.equals("description") ? "desc" : suffix);
+        return net.minecraft.client.resources.language.I18n.exists(builtin) ? builtin
+                : "perk." + perkId.getNamespace() + "." + perkId.getPath() + "." + suffix;
     }
 
     private static void line(GuiGraphics graphics, int x0, int y0, int x1, int y1) {

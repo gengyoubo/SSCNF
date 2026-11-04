@@ -980,5 +980,9 @@
     "key.shape-shifter-curse.scroll_active_skill": "Hold to scroll skills",
     "key.shape-shifter-curse.prev_active_skill": "Previous active skill",
     "key.shape-shifter-curse.next_active_skill": "Next active skill",
-    "key.shape-shifter-curse.active_skill": "Use selected skill"
+    "key.shape-shifter-curse.active_skill": "Use selected skill",
+    "screen.shape-shifter-curse.form_attuner.perk_attuner_level": "Attuner level: %s",
+    "screen.shape-shifter-curse.form_attuner.perk_cost_levels": "Experience levels: %s",
+    "screen.shape-shifter-curse.form_attuner.perk_cost_points": "Experience points: %s",
+    "screen.shape-shifter-curse.form_attuner.perk_cost_items": "Items: %s × %s"
 }

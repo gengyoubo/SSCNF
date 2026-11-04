@@ -739,5 +739,9 @@
     "item.shape-shifter-curse.surge_catalyst_core.tooltip": "Он напоминает о скрытых бурных течениях под спокойной морской гладью.",
     "item.shape-shifter-curse.venom_spindle_plus.tooltip": "[Форма паука] Паутинные снаряды наносят урон и накладывают эффекты отравления и слабости, но больше не замедляют цель. +Также накладывают эффект опутывания+",
     "item.shape-shifter-curse.web_catalyst_core.tooltip": "Он напоминает о мягком, почти невесомом прикосновении шёлка.",
-    "item.shape-shifter-curse.withered_bandage_plus.tooltip": "[Форма шакала] Эффект иссушения, который вы получаете при ударе, имеет пониженный уровень и длится дольше. +После получения удара иссушение на вас длится значительно дольше, давая больше времени для атаки+"
+    "item.shape-shifter-curse.withered_bandage_plus.tooltip": "[Форма шакала] Эффект иссушения, который вы получаете при ударе, имеет пониженный уровень и длится дольше. +После получения удара иссушение на вас длится значительно дольше, давая больше времени для атаки+",
+    "screen.shape-shifter-curse.form_attuner.perk_attuner_level": "Уровень настройки: %s",
+    "screen.shape-shifter-curse.form_attuner.perk_cost_levels": "Уровни опыта: %s",
+    "screen.shape-shifter-curse.form_attuner.perk_cost_points": "Очки опыта: %s",
+    "screen.shape-shifter-curse.form_attuner.perk_cost_items": "Предметы: %s × %s"
 }
