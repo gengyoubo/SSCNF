@@ -139,9 +139,14 @@ public final class FormUpgradeScreen extends Screen {
         return depth;
     }
 
+    /** Vanilla's background blur would also cover everything render() draws before super.render(). */
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    }
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
+        renderTransparentBackground(graphics);
         baseX = width / 2 - PANEL_WIDTH / 2;
         baseY = height / 2 - PANEL_HEIGHT / 2;
         nodeWindowX = baseX + PERK_UI_X;

@@ -131,6 +131,11 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
                 .pos(fixedPosX, fixedPosY).size(9 * bookScale, 9 * bookScale).build();
     }
 
+    /** Vanilla's background blur would also cover everything render() draws before super.render(). */
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    }
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBook(graphics);

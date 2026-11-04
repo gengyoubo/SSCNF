@@ -42,7 +42,14 @@ Minecraft minecraft = Minecraft.getInstance();
         if (++ticksInLevel != 20) {
             return;
         }
-        if (!SscClientConfig.CUSTOM_AUTO_SYNC_CONFIG.get()) {
+        syncNow();
+    }
+
+    /** Pushes the local preferences to the server; also called when the config screen closes. */
+    public static void syncNow() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null || minecraft.getConnection() == null
+                || !SscClientConfig.CUSTOM_AUTO_SYNC_CONFIG.get()) {
             return;
         }
         boolean keep = SscClientConfig.CUSTOM_KEEP_ORIGINAL_SKIN.get();

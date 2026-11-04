@@ -46,6 +46,11 @@ public class DetailScreen extends Screen implements WidgetEXUtils.IWidgetEX {
         }
     }
 
+    /** Vanilla's background blur would also cover everything render() draws before super.render(). */
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    }
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         graphics.fillGradient(0, 0, this.width, this.height, -1072689136, -804253680);

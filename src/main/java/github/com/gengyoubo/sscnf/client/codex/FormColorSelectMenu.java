@@ -696,11 +696,18 @@ public class FormColorSelectMenu extends Screen
         this.drawExtraPart(graphics, bgX + 133, bgY + 20, this.isOpenSlider ? 184 : 0);
     }
 
+    /** Vanilla's background blur would also cover everything render() draws before super.render(). */
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    }
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int bPosX = this.width / 2 - BG_WIDTH / 2;
         int bPosY = this.height / 2 - BG_HEIGHT / 2;
-        this.renderBackground(graphics, mouseX, mouseY, partialTick);
+        // The config screen can open this menu from the title screen, where there is no world behind it.
+        if (minecraftClient.level == null) this.renderPanorama(graphics, partialTick);
+        this.renderTransparentBackground(graphics);
         this.renderTextureBackground(graphics);
         if (!this.isOpenSlider) {
             graphics.fill(bPosX + 228, bPosY + 27, bPosX + 239, bPosY + 38, this.primaryColor);

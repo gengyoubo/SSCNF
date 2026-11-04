@@ -158,6 +158,11 @@ public class NormalFormSelectScreen extends Screen {
         graphics.blit(BG_TEXTURE, bgX, bgY, 0, 0, BG_WIDTH, BG_HEIGHT, BG_WIDTH, BG_HEIGHT);
     }
 
+    /** Vanilla's background blur would also cover everything render() draws before super.render(). */
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    }
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackgroundTexture(graphics);

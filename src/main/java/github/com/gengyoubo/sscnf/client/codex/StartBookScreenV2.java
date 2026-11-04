@@ -68,6 +68,11 @@ public class StartBookScreenV2 extends Screen implements WidgetEXUtils.IWidgetEX
                 BOOK_SIZE_X, BOOK_SIZE_Y, BOOK_SIZE_X, BOOK_SIZE_Y);
     }
 
+    /** Vanilla's background blur would also cover everything render() draws before super.render(). */
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    }
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBook(graphics);

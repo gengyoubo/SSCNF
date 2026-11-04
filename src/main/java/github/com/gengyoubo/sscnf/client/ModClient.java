@@ -27,7 +27,7 @@ import github.com.gengyoubo.sscnf.registry.ModBlocks;
 public final class ModClient {
     public static void registerConfigScreen(net.neoforged.fml.ModContainer container) {
         container.registerExtensionPoint(net.neoforged.neoforge.client.gui.IConfigScreenFactory.class,
-                (mod, parent) -> new net.neoforged.neoforge.client.gui.ConfigurationScreen(container, parent));
+                (mod, parent) -> new github.com.gengyoubo.sscnf.client.screen.SscConfigScreen(parent));
     }
 
     @SubscribeEvent

@@ -60,9 +60,14 @@ public final class FormAttunerScreen extends Screen {
                 .bounds(width / 2 - 45, height / 2 + 118, 90, 20).build());
     }
 
+    /** Vanilla's background blur would also cover everything render() draws before super.render(). */
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    }
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
+        renderTransparentBackground(graphics);
         int panelWidth = 390, panelHeight = 267;
         int left = (width - panelWidth) / 2, top = (height - panelHeight) / 2;
         graphics.fill(left - 2, top - 2, left + panelWidth + 2, top + panelHeight + 2, 0xFFB98BEE);
