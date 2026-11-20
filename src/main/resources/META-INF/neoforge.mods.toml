@@ -14,7 +14,7 @@ description='''A NeoForge 1.21.1 port of Shape Shifter Curse.'''
 [[dependencies.${mod_id}]]
 modId="neoforge"
 type="required"
-versionRange="[21.1.259,21.2)"
+versionRange="[21.1,)"
 ordering="NONE"
 side="BOTH"
 

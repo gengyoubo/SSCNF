@@ -3,11 +3,12 @@
   <groupId>github.com.gengyoubo.sscnf</groupId>
   <artifactId>shape_shifter_curse</artifactId>
   <versioning>
-    <latest>1.10.0.3</latest>
-    <release>1.10.0.3</release>
+    <latest>1.10.0.4</latest>
+    <release>1.10.0.4</release>
     <versions>
       <version>1.10.0.3</version>
+      <version>1.10.0.4</version>
     </versions>
-    <lastUpdated>20261120060902</lastUpdated>
+    <lastUpdated>20261120104205</lastUpdated>
   </versioning>
 </metadata>
