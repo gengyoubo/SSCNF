@@ -46,4 +46,20 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs += ['-Xmaxerrs', '1000']
 }
-publishing { publications { mavenJava(MavenPublication) { from components.java } } }
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            groupId = project.group
+            artifactId = project.mod_id
+            version = project.version
+            // NeoForge 1.21.1 runs on Mojang mappings: the plain jar is the runnable one.
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = 'localModRepository'
+            url = layout.projectDirectory.dir('maven-repo')
+        }
+    }
+}

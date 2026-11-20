@@ -1,0 +1,96 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "github.com.gengyoubo.sscnf",
+    "module": "shape_shifter_curse",
+    "version": "1.10.0.3",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.3"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 21,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "shape_shifter_curse-1.10.0.3.jar",
+          "url": "shape_shifter_curse-1.10.0.3.jar",
+          "size": 3038644,
+          "sha512": "c27b54a9227c1a8f6d7cd0dd93aac614f241f1400f7976c5b62bf14b67421bb0c9b1eb4f4179b188963688e01634c5e53b7825d7727731ec7af339ea192b87ab",
+          "sha256": "78593507db8f4cbcc213fd4ecd8a1c66c138234c6234a3c2c10eaccfde1b8314",
+          "sha1": "52b0f8ad11b2098494a466bc493ecb6a87dedb11",
+          "md5": "e614523a7785704414e04a6a571c8d4c"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 21,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "software.bernie.geckolib",
+          "module": "geckolib-neoforge-1.21.1",
+          "version": {
+            "requires": "4.8.4"
+          }
+        },
+        {
+          "group": "top.theillusivec4.curios",
+          "module": "curios-neoforge",
+          "version": {
+            "requires": "9.5.1+1.21.1"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "shape_shifter_curse-1.10.0.3.jar",
+          "url": "shape_shifter_curse-1.10.0.3.jar",
+          "size": 3038644,
+          "sha512": "c27b54a9227c1a8f6d7cd0dd93aac614f241f1400f7976c5b62bf14b67421bb0c9b1eb4f4179b188963688e01634c5e53b7825d7727731ec7af339ea192b87ab",
+          "sha256": "78593507db8f4cbcc213fd4ecd8a1c66c138234c6234a3c2c10eaccfde1b8314",
+          "sha1": "52b0f8ad11b2098494a466bc493ecb6a87dedb11",
+          "md5": "e614523a7785704414e04a6a571c8d4c"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "shape_shifter_curse-1.10.0.3-sources.jar",
+          "url": "shape_shifter_curse-1.10.0.3-sources.jar",
+          "size": 2362217,
+          "sha512": "e9adffc27b226dbdda81c482fccad5a7756d886ab8a56c5e0605443ebc0732c7a61ae1790cc2643fd810568acbe5832f1aa279bbca189edff3182848af4fdc9f",
+          "sha256": "421895a3bb7d8e4a07e92d7db76be0fe1dad71945ebbf62eb48b20a08d0d79eb",
+          "sha1": "2ad06a4aa7a3a223b0da4d2689f18ad42e80a58b",
+          "md5": "91855761eee5bcb7d2d9b84460dbc83e"
+        }
+      ]
+    }
+  ]
+}
