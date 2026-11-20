@@ -24,6 +24,7 @@ import github.com.gengyoubo.sscnf.form.FormDefinition;
 import github.com.gengyoubo.sscnf.form.FormManager;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
+import software.bernie.geckolib.cache.object.GeoBone;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -66,15 +67,19 @@ public final class FormClientRenderEvents {
         Minecraft minecraft = Minecraft.getInstance();
         // Both survival and creative inventories render their player preview full-bright.  This
         // is stable across the two screen classes, unlike instanceof InventoryScreen.
-        boolean inventoryPreview = minecraft.screen != null && player == minecraft.player
+        boolean inventoryPreview = !ShaderRenderCompat.isShadowPass()
+                && minecraft.screen != null && player == minecraft.player
                 && event.getPackedLight() == LightTexture.FULL_BRIGHT;
         PlayerAnimatorCompat.ArmVisibility animatedArms = inventoryPreview ? null
                 : PlayerAnimatorCompat.firstPersonArms(player);
+        // Shader shadows are world renders even with a first-person camera. The shared
+        // first-person checks exclude them, preserving the full form, head and equipment.
         // Vanilla never renders the camera entity's body in first person; the form's
         // first-person arms are handled separately by FormFirstPersonArmEvents.
-        boolean selfFirstPerson = !inventoryPreview && player == minecraft.player
-                && minecraft.options.getCameraType().isFirstPerson() && animatedArms == null;
-        if (selfFirstPerson && !FirstPersonModelCompat.isEnabled()) {
+        // First-person Model does render it, and that body must be the form.
+        boolean selfFirstPerson = !inventoryPreview && animatedArms == null
+                && FirstPersonModelCompat.isLocalFirstPerson(player);
+        if (selfFirstPerson && !FirstPersonModelCompat.isRenderingPlayer()) {
             setAllPartsVisible(vanillaModel);
             logRenderOutcome(player, form, "skip:first-person-self");
             return;
@@ -97,9 +102,12 @@ public final class FormClientRenderEvents {
         // before vanilla ran, stranding the player invisible with no recovery signal.
         PoseStack poseStack = event.getPoseStack();
         FirstPersonGeoVisibility armVisibility = null;
-        software.bernie.geckolib.cache.object.GeoBone hiddenNeck = null;
-        boolean neckWasHidden = false;
+        GeoBone hiddenHead = null;
+        boolean headWasHidden = false;
+        boolean headChildrenWereHidden = false;
         poseStack.pushPose();
+        // Bone matrices captured by this Geo pass are read by this player's vanilla layers.
+        GeoBonePose.beginFrame(player);
         try {
             renderer.setPlayer(player);
             renderer.setVanillaPlayerModel(vanillaModel);
@@ -132,8 +140,12 @@ public final class FormClientRenderEvents {
             if (selfFirstPerson) {
                 FormGeoModel geoModel = (FormGeoModel) renderer.getGeoModel();
                 geoModel.getBakedModel(geoModel.modelResource());
-                hiddenNeck = geoModel.neckRootBone().orElse(null);
-                if (hiddenNeck != null) { neckWasHidden = hiddenNeck.isHidden(); hiddenNeck.setHidden(true); }
+                hiddenHead = geoModel.neckRootBone().or(() -> geoModel.getBone("bipedHead")).orElse(null);
+                if (hiddenHead != null) {
+                    headWasHidden = hiddenHead.isHidden();
+                    headChildrenWereHidden = hiddenHead.isHidingChildren();
+                    hiddenHead.setHidden(true);
+                }
             }
             // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
             // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
@@ -165,7 +177,10 @@ public final class FormClientRenderEvents {
             reportRenderFailure(player, form, exception);
         } finally {
             if (armVisibility != null) armVisibility.close();
-            if (hiddenNeck != null) hiddenNeck.setHidden(neckWasHidden);
+            if (hiddenHead != null) {
+                hiddenHead.setHidden(headWasHidden);
+                hiddenHead.setChildrenHidden(headChildrenWereHidden);
+            }
             poseStack.popPose();
         }
     }
@@ -175,6 +190,7 @@ public final class FormClientRenderEvents {
     @SubscribeEvent
     public static void renderPlayerPost(RenderPlayerEvent.Post event) {
         if (event.getEntity() instanceof Player) {
+            GeoBonePose.endFrame();
             setAllPartsVisible(event.getRenderer().getModel());
             FormGeoRenderer renderer = rendererFor(renderedForm(event.getEntity(), event.getPackedLight()));
             if (renderer != null) renderer.getAnimatable().clearPreparedPose();
@@ -183,7 +199,8 @@ public final class FormClientRenderEvents {
 
     private static FormDefinition renderedForm(Player player, int packedLight) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.screen != null && player == minecraft.player && packedLight == LightTexture.FULL_BRIGHT
+        if (!ShaderRenderCompat.isShadowPass()
+                && minecraft.screen != null && player == minecraft.player && packedLight == LightTexture.FULL_BRIGHT
                 && FormTextureUtils.tempFormModelProcessor != null) {
             var preview = FormTextureUtils.tempFormModelProcessor.getPreviewForm();
             var form = preview == null ? null : github.com.gengyoubo.sscnf.form.FormRegistry.get(preview);

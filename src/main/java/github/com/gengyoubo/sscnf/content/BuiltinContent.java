@@ -122,6 +122,8 @@ public final class BuiltinContent {
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_2"), ResourceLocation.parse("shape-shifter-curse:undead_group"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_2"), ResourceLocation.parse("shape-shifter-curse:form_tan_prevent_dirty_water_thirst"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_2"), ResourceLocation.parse("shape-shifter-curse:form_tan_hot_resistance_mild"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_2"), ResourceLocation.parse("shape-shifter-curse:form_anubis_wolf_disable_hurt_camera_when_withered"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_2"), ResourceLocation.parse("shape-shifter-curse:form_anubis_wolf_disable_wither_hearts"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_3"), ResourceLocation.parse("shape-shifter-curse:no_render_arm"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_3"), ResourceLocation.parse("shape-shifter-curse:form_anubis_wolf_twolf_friendly"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_3"), ResourceLocation.parse("shape-shifter-curse:form_anubis_wolf_3_undying"));
@@ -157,6 +159,9 @@ public final class BuiltinContent {
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_3"), ResourceLocation.parse("shape-shifter-curse:feral_form_step_sound_speed_up"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_3"), ResourceLocation.parse("shape-shifter-curse:form_tan_prevent_dirty_water_thirst"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_3"), ResourceLocation.parse("shape-shifter-curse:form_tan_hot_resistance_mild"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_3"), ResourceLocation.parse("shape-shifter-curse:form_anubis_wolf_disable_hurt_camera_when_withered"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_3"), ResourceLocation.parse("shape-shifter-curse:form_anubis_wolf_disable_wither_hearts"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:anubis_wolf_3"), ResourceLocation.parse("shape-shifter-curse:undead_group"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:axolotl_0"), ResourceLocation.parse("shape-shifter-curse:hold_breath"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:axolotl_0"), ResourceLocation.parse("shape-shifter-curse:form_axolotl_0_new_puff_speed_down"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:axolotl_0"), ResourceLocation.parse("shape-shifter-curse:form_axolotl_0_swim_speed"));
@@ -411,6 +416,8 @@ public final class BuiltinContent {
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_2"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_sound_key"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_2"), ResourceLocation.parse("shape-shifter-curse:form_tan_prevent_dirty_water_thirst"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_2"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_2_tan_temperature_modify"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_2"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_explosive_charm_paper"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_2"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_explosive_charm_paper_damage"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_3"), ResourceLocation.parse("shape-shifter-curse:no_render_arm"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_3_particle"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_3_craft_healing_potion"));
@@ -466,6 +473,8 @@ public final class BuiltinContent {
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_3"), ResourceLocation.parse("shape-shifter-curse:feral_form_step_sound_speed_up"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_tan_prevent_dirty_water_thirst"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_3_tan_temperature_modify"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_explosive_charm_paper"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:familiar_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_explosive_charm_paper_damage"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:feral_cat_sp"), ResourceLocation.parse("shape-shifter-curse:no_render_arm"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:feral_cat_sp"), ResourceLocation.parse("shape-shifter-curse:form_disable_leg_armor"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:feral_cat_sp"), ResourceLocation.parse("shape-shifter-curse:form_disable_feet_armor"));
@@ -641,6 +650,7 @@ public final class BuiltinContent {
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_2"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_sound_key"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_2"), ResourceLocation.parse("shape-shifter-curse:form_tan_prevent_dirty_water_thirst"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_2"), ResourceLocation.parse("shape-shifter-curse:form_snow_fox_2_tan_temperature_remap"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_2"), ResourceLocation.parse("shape-shifter-curse:form_snow_fox_bottled_snowfall_plus_tool"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_3"), ResourceLocation.parse("shape-shifter-curse:no_render_arm"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_sprint_speed_up"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_familiar_fox_3_water_speed_down"));
@@ -677,6 +687,7 @@ public final class BuiltinContent {
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_3"), ResourceLocation.parse("shape-shifter-curse:feral_form_step_sound_speed_up"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_snow_fox_3_tan_temperature_remap"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_tan_prevent_dirty_water_thirst"));
+        SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:snow_fox_3"), ResourceLocation.parse("shape-shifter-curse:form_snow_fox_bottled_snowfall_plus_tool"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:spider_0"), ResourceLocation.parse("shape-shifter-curse:form_spider_0_web_projectile"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:spider_0"), ResourceLocation.parse("shape-shifter-curse:form_spider_web_no_slow"));
         SscJavaRegistries.attachPowerReference(ResourceLocation.parse("shape-shifter-curse:spider_0"), ResourceLocation.parse("shape-shifter-curse:form_spider_climb_web"));

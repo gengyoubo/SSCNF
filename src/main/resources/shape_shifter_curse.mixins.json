@@ -6,6 +6,8 @@
     "compatibilityLevel": "JAVA_21",
     "mixins": [
         "LivingEntityMixin",
+        "ImmuneFreezeMixin",
+        "PreventSprintingMixin",
         "FrostMovementMixin",
         "PlayerCombatPerkMixin",
         "WitherIntervalMixin",
@@ -50,6 +52,14 @@
         "integration.ToughAsNailsDrinkInWorldPacketMixin"
     ],
     "client": [
+        "client.FormGogglesArmorMixin",
+        "client.LongNeckArmorLayerMixin",
+        "client.HindLegArmorLayerMixin",
+        "client.LongNeckCustomHeadLayerMixin",
+        "client.PlayerSpeedFovMixin",
+        "client.CursedMoonSkyMixin",
+        "client.CursedMoonLightTextureMixin",
+        "client.ElytraFlightLocalPlayerMixin",
         "accessor.ItemInHandRendererInvoker",
         "client.AbstractClientPlayerSkinMixin",
         "client.CameraBobbingMixin",

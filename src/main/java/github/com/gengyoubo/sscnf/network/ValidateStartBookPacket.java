@@ -9,6 +9,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import github.com.gengyoubo.sscnf.form.FormManager;
 import github.com.gengyoubo.sscnf.form.FormRegistry;
+import github.com.gengyoubo.sscnf.form.TransformManager;
 import github.com.gengyoubo.sscnf.other.advancement.SscAdvancementTriggers;
 
 import java.util.function.Supplier;
@@ -38,7 +39,7 @@ public record ValidateStartBookPacket() implements CustomPacketPayload {
             }
             ResourceLocation current = FormManager.current(player).id();
             if (FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(current)) {
-                FormManager.setForm(player, FormRegistry.ORIGINAL_SHIFTER);
+                TransformManager.startTransform(player, FormRegistry.ORIGINAL_SHIFTER);
                 SscAdvancementTriggers.ON_ENABLE_MOD.trigger(player);
                 player.sendSystemMessage(Component.translatable(
                         "info.shape-shifter-curse.on_enable_mod"

@@ -672,7 +672,7 @@
     "screen.shape-shifter-curse.form_attuner.title": "Формовый тюнер",
     "screen.shape-shifter-curse.form_attuner.level": "Уровень настройки: %s / %s",
     "screen.shape-shifter-curse.form_attuner.ready": "Тюнер готов.",
-    "screen.shape-shifter-curse.form_attuner.inactive": "Тюнеру нужна активная Проклятая Луна и подходящая основа.",
+    "screen.shape-shifter-curse.form_attuner.inactive": "Тюнеру нужны подходящая основа и свободный путь луча в Верхнем мире.",
     "screen.shape-shifter-curse.form_attuner.skills": "Дерево навыков",
     "screen.shape-shifter-curse.form_attuner.no_skills": "У этой формы нет навыков.",
     "screen.shape-shifter-curse.form_attuner.perk_cost": "Требуется настройка %s; стоит %s уровней опыта",
@@ -682,7 +682,7 @@
     "screen.shape-shifter-curse.form_attuner.perk_xp": "Стоимость опыта: %s",
     "screen.shape-shifter-curse.form_attuner.perk_kind.non_power": "Разовое / не-Сила",
     "screen.shape-shifter-curse.form_attuner.perk_kind.passive_power": "Пассивная Сила",
-    "screen.shape-shifter-curse.form_attuner.perk_kind.active_power": "Активная Сила (Активный навык 1)",
+    "screen.shape-shifter-curse.form_attuner.perk_kind.active_power": "Активная Сила",
     "screen.shape-shifter-curse.form_attuner.perk_kind.gate": "Ключевой узел / предпосылка",
     "screen.shape-shifter-curse.form_attuner.purchase.success": "Навык разблокирован.",
     "screen.shape-shifter-curse.form_attuner.purchase.unknown_perk": "Неизвестный навык.",
@@ -717,6 +717,9 @@
     "text.cloth-config.boolean.value.false": "Выкл",
     "gui.shape_shifter_curse.category.altar": "Алтарь",
     "gui.shape_shifter_curse.jei.machine_details": "Время: %s сек.; топливо: %s",
+    "gui.shape_shifter_curse.jei.altar.recipe_id": "Рецепт: %s",
+    "gui.shape_shifter_curse.jei.altar.time": "Время: %s сек.",
+    "gui.shape_shifter_curse.jei.altar.moondust": "Расход лунной пыли: %s",
     "screen.shape-shifter-curse.form_attuner.purchase.not_implemented": "This perk is not available yet.",
     "screen.shape-shifter-curse.form_attuner.perk_item_cost": "Glint Prism ×%s",
     "screen.shape-shifter-curse.form_attuner.purchase.insufficient_items": "Not enough Glint Prisms.",
@@ -743,5 +746,8 @@
     "screen.shape-shifter-curse.form_attuner.perk_attuner_level": "Уровень настройки: %s",
     "screen.shape-shifter-curse.form_attuner.perk_cost_levels": "Уровни опыта: %s",
     "screen.shape-shifter-curse.form_attuner.perk_cost_points": "Очки опыта: %s",
-    "screen.shape-shifter-curse.form_attuner.perk_cost_items": "Предметы: %s × %s"
+    "screen.shape-shifter-curse.form_attuner.perk_cost_items": "Предметы: %s × %s",
+    "item.shape-shifter-curse.ripple_mirror.tooltip": "Глядя в зеркало, вы видите образы других существ...",
+    "item.shape-shifter-curse.morphscale_core.tooltip": "Используется на кузнечном столе для создания и улучшения снаряжения из чешуи метаморфа.",
+    "codex.form.variant_wip": "WIP"
 }

@@ -21,6 +21,12 @@ public final class FormRegistry {
     private static final Map<ResourceLocation, FormGroup> GROUPS = new LinkedHashMap<>();
     /** Cosmetic sub-forms to the master form whose Origin powers they inherit. */
     private static final Map<ResourceLocation, ResourceLocation> SUB_FORM_MASTERS = new LinkedHashMap<>();
+    /** Powers a sub-form adds on top of / removes from its master form's inherited set. */
+    /** Built-in declarations as passed to {@code add}, readable before Java forms resolve. */
+    private record DeclaredForm(String groupPath, int tier, List<String> flags) { }
+    private static final Map<ResourceLocation, DeclaredForm> DECLARED_FORMS = new LinkedHashMap<>();
+    private static final Map<ResourceLocation, List<ResourceLocation>> SUB_FORM_POWER_ADDS = new LinkedHashMap<>();
+    private static final Map<ResourceLocation, List<ResourceLocation>> SUB_FORM_POWER_REMOVES = new LinkedHashMap<>();
     private static final Map<ResourceLocation, SscForm> JAVA_FORMS = new LinkedHashMap<>();
     /** Legacy builder-defined branch links, retained for source compatibility. */
     private static final Map<ResourceLocation, ResourceLocation> JAVA_VARIANT_PARENTS = new LinkedHashMap<>();
@@ -57,13 +63,72 @@ public final class FormRegistry {
         add("feral_cat_sp", "feral_cat_form", 1, FormBodyType.FERAL, 0.55F, 0.55F, 0.60F,
                 "no_instinct", "no_cursed_moon_effect", "special_form");
 
-        // Sub-forms are cosmetic variants that inherit their master form's Origin powers via lineage.
-        add("snow_fox_3_sub_marbled_polecat", "snow_fox_form", 4, FormBodyType.FERAL, 0.55F, 0.55F, 0.60F,
-                "sub_form");
-        SUB_FORM_MASTERS.put(id("snow_fox_3_sub_marbled_polecat"), id("snow_fox_3"));
-        add("bat_3_sub_avali", "bat_form", 4, FormBodyType.NORMAL, 0.65F, 0.65F, 1.0F,
-                "sub_form");
-        SUB_FORM_MASTERS.put(id("bat_3_sub_avali"), id("bat_3"));
+        // Sub-forms inherit their master form's Origin powers via lineage, then apply their own
+        // add/remove list on top (Fabric: NormalSubForm#power_ADD / power_REMOVE).
+        addSubForm("snow_fox_3_sub_marbled_polecat", "snow_fox_3", FormBodyType.FERAL, 0.55F, 0.55F, 0.60F);
+        // Fabric: Form_SnowFox3_Sub_MarbledPolecat
+        subFormPowers("snow_fox_3_sub_marbled_polecat",
+                List.of("sub_form_marbled_polecat_idle_stay_eye_height",
+                        "sub_form_marbled_polecat_step_sound_speed_down"),
+                List.of("feral_form_step_sound_speed_up",
+                        "form_snow_fox_3_keep_burn",
+                        "form_snow_fox_3_burn_damage_up",
+                        "form_snow_fox_3_water_bottle_put_out_fire",
+                        "form_snow_fox_3_near_lava_damage",
+                        "form_snow_fox_3_near_fire_damage",
+                        "form_snow_fox_snowball_transform",
+                        "form_snow_fox_3_sweet_berry_up",
+                        "form_snow_fox_3_fox_friendly"));
+
+        addSubForm("bat_3_sub_avali", "bat_3", FormBodyType.NORMAL, 0.65F, 0.65F, 1.0F);
+        // Fabric: Form_Bat3_Sub_Avali
+        subFormPowers("bat_3_sub_avali",
+                List.of("sub_form_avali_sound_key",
+                        "sub_form_avali_side_block_attach",
+                        "sub_form_avali_step_sound",
+                        "sub_form_avali_water_slowness",
+                        "sub_form_avali_hot_health_down"),
+                List.of("form_bat_3_sky_speed",
+                        "form_bat_3_damage_up_when_no_sun",
+                        "form_bat_3_ground_speed_down",
+                        "prevent_ranged_weapon_use",
+                        "form_vegetarian",
+                        "form_vegetarian_food_up",
+                        "bat_vision",
+                        "form_bat_2_sun_health",
+                        "drop_tool_after_digging",
+                        "drop_weapon_after_hit",
+                        "barehand_digging_speed_up",
+                        "always_harvest",
+                        "form_camera_bobbing_bat",
+                        "form_bat_3_block_attach",
+                        "no_render_arm",
+                        "form_bat_sound_key"));
+    }
+
+    /**
+     * Fabric NormalSubForm#loadAllDataFormMasterForm: a sub-form joins its master's group at the
+     * master's tier and copies every master flag (final_form, no_instinct, no_cursed_moon_effect,
+     * the animation slow-fall flag, ...), plus its own {@code sub_form} marker.
+     */
+    private static void addSubForm(String path, String masterPath, FormBodyType bodyType,
+                                   float widthScale, float heightScale, float eyeScale) {
+        // Java forms resolve lazily, so read the master's declaration rather than FORMS.
+        DeclaredForm master = DECLARED_FORMS.get(id(masterPath));
+        if (master == null) {
+            throw new IllegalStateException("Sub-form '" + path + "' declared before its master '" + masterPath + "'");
+        }
+        Set<String> flags = new LinkedHashSet<>(master.flags());
+        flags.add("sub_form");
+        add(path, master.groupPath(), master.tier(), bodyType, widthScale, heightScale, eyeScale,
+                flags.toArray(String[]::new));
+        SUB_FORM_MASTERS.put(id(path), id(masterPath));
+    }
+
+    private static void subFormPowers(String path, List<String> adds, List<String> removes) {
+        ResourceLocation formId = id(path);
+        SUB_FORM_POWER_ADDS.put(formId, adds.stream().map(FormRegistry::id).toList());
+        SUB_FORM_POWER_REMOVES.put(formId, removes.stream().map(FormRegistry::id).toList());
     }
 
     private static void addCreatureGroup(String path, float[] widths, float[] eyes) {
@@ -76,6 +141,12 @@ public final class FormRegistry {
                 case 4 -> Set.of("final_form", "inhibitor_immune", "no_instinct", "no_cursed_moon_effect");
                 default -> Set.of();
             });
+            if (path.equals("bat") && tier >= 3) {
+                // Fabric gives Bat 2/3 the animation-only "slow_fall" flag so gliding plays the
+                // slow-falling clip. Forge's own "slow_fall" flag also changes physics, so the
+                // animation meaning lives under a separate name.
+                flags.add("slow_fall_animation");
+            }
             if (path.equals("spider") && tier >= 3) {
                 flags.add("night_vision");
                 flags.add("climb");
@@ -122,6 +193,7 @@ public final class FormRegistry {
     private static void add(String path, String groupPath, int tier, int weight, FormBodyType bodyType,
                              float widthScale, float heightScale, float eyeScale,
                              float fallProtectionDistance, float jumpVelocityAddition, String... flags) {
+        DECLARED_FORMS.put(id(path), new DeclaredForm(groupPath, tier, List.of(flags)));
         github.com.gengyoubo.sscnf.api.registry.SscJavaRegistries.registerForm(
                 SscForm.builder(id(path)).group(id(groupPath)).stage(tier).weight(weight)
                         .bodyType(bodyType).widthScale(widthScale).heightScale(heightScale).eyeScale(eyeScale)
@@ -455,6 +527,18 @@ public final class FormRegistry {
     public static ResourceLocation masterFormOf(ResourceLocation formId) {
         bootstrap();
         return SUB_FORM_MASTERS.get(formId);
+    }
+
+    /** Powers this sub-form adds on top of its master form's powers; empty for ordinary forms. */
+    public static List<ResourceLocation> subFormPowerAdds(ResourceLocation formId) {
+        bootstrap();
+        return SUB_FORM_POWER_ADDS.getOrDefault(formId, List.of());
+    }
+
+    /** Master-form powers this sub-form drops; empty for ordinary forms. */
+    public static List<ResourceLocation> subFormPowerRemoves(ResourceLocation formId) {
+        bootstrap();
+        return SUB_FORM_POWER_REMOVES.getOrDefault(formId, List.of());
     }
 
     /** Whether an id was successfully loaded from an external {@code ssc_form} data directory. */

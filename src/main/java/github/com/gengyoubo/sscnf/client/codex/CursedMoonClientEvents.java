@@ -5,12 +5,18 @@ import net.neoforged.api.distmarker.Dist;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import github.com.gengyoubo.sscnf.ShapeShifterCurseNeoForge;
 
 /** Client-side warning message, matching Fabric's midday Cursed Moon notification. */
 @net.neoforged.fml.common.EventBusSubscriber(modid = ShapeShifterCurseNeoForge.MOD_ID, value = Dist.CLIENT)
 public final class CursedMoonClientEvents {
     private CursedMoonClientEvents() {
+    }
+
+    @SubscribeEvent
+    public static void disconnected(ClientPlayerNetworkEvent.LoggingOut event) {
+        CursedMoonData.clearServerState();
     }
 
     @SubscribeEvent

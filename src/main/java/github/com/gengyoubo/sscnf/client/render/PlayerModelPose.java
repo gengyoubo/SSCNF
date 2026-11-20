@@ -14,13 +14,26 @@ public record PlayerModelPose(PartPose head, PartPose body, PartPose rightArm,
     }
 
     public void apply(PlayerModel<?> model) {
+        applyUpperBody(model);
+        rightLeg.apply(model.rightLeg);
+        leftLeg.apply(model.leftLeg);
+    }
+
+    public void applyUpperBody(PlayerModel<?> model) {
         head.apply(model.head);
         body.apply(model.body);
         rightArm.apply(model.rightArm);
         leftArm.apply(model.leftArm);
-        rightLeg.apply(model.rightLeg);
-        leftLeg.apply(model.leftLeg);
         model.hat.copyFrom(model.head);
+    }
+
+    /** Keep the form's arm pivot while restoring a vanilla item/attack rotation. */
+    public void applyArmRotation(PlayerModel<?> model, net.minecraft.world.entity.HumanoidArm arm, float pitchOffset) {
+        PartPose pose = arm == net.minecraft.world.entity.HumanoidArm.RIGHT ? rightArm : leftArm;
+        var part = arm == net.minecraft.world.entity.HumanoidArm.RIGHT ? model.rightArm : model.leftArm;
+        part.xRot = pose.xRot + pitchOffset;
+        part.yRot = pose.yRot;
+        part.zRot = pose.zRot;
     }
 
     public static PlayerModelPose lerp(PlayerModelPose from, PlayerModelPose to, float amount) {
@@ -32,9 +45,11 @@ public record PlayerModelPose(PartPose head, PartPose body, PartPose rightArm,
                 PartPose.lerp(from.leftLeg, to.leftLeg, amount));
     }
 
-    private record PartPose(float x, float y, float z, float xRot, float yRot, float zRot) {
+    private record PartPose(float x, float y, float z, float xRot, float yRot, float zRot,
+                            float xScale, float yScale, float zScale) {
         private static PartPose capture(net.minecraft.client.model.geom.ModelPart part) {
-            return new PartPose(part.x, part.y, part.z, part.xRot, part.yRot, part.zRot);
+            return new PartPose(part.x, part.y, part.z, part.xRot, part.yRot, part.zRot,
+                    part.xScale, part.yScale, part.zScale);
         }
 
         private void apply(net.minecraft.client.model.geom.ModelPart part) {
@@ -44,12 +59,17 @@ public record PlayerModelPose(PartPose head, PartPose body, PartPose rightArm,
             part.xRot = xRot;
             part.yRot = yRot;
             part.zRot = zRot;
+            part.xScale = xScale;
+            part.yScale = yScale;
+            part.zScale = zScale;
         }
 
         private static PartPose lerp(PartPose from, PartPose to, float amount) {
             return new PartPose(Mth.lerp(amount, from.x, to.x), Mth.lerp(amount, from.y, to.y),
                     Mth.lerp(amount, from.z, to.z), AnimationTransition.rotation(from.xRot, to.xRot, amount),
-                    AnimationTransition.rotation(from.yRot, to.yRot, amount), AnimationTransition.rotation(from.zRot, to.zRot, amount));
+                    AnimationTransition.rotation(from.yRot, to.yRot, amount), AnimationTransition.rotation(from.zRot, to.zRot, amount),
+                    Mth.lerp(amount, from.xScale, to.xScale), Mth.lerp(amount, from.yScale, to.yScale),
+                    Mth.lerp(amount, from.zScale, to.zScale));
         }
     }
 

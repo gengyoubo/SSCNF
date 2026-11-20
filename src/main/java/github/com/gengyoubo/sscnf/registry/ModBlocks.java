@@ -37,19 +37,19 @@ public final class ModBlocks {
             "web_composter",
             () -> new github.com.gengyoubo.sscnf.block.WebComposterBlock(
                     BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(1.5F)
-                            .sound(net.minecraft.world.level.block.SoundType.WOOD))
+                            .sound(net.minecraft.world.level.block.SoundType.WOOD).noOcclusion().forceSolidOff())
     );
 
     public static final DeferredHolder<Block, ? extends Block> ALTAR = BLOCKS.register(
             "altar",
-            () -> new github.com.gengyoubo.sscnf.block.AltarBlock(BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0F).sound(net.minecraft.world.level.block.SoundType.WOOD).noOcclusion())
+            () -> new github.com.gengyoubo.sscnf.block.AltarBlock(BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0F).sound(net.minecraft.world.level.block.SoundType.WOOD).noOcclusion().forceSolidOff())
     );
 
     public static final DeferredHolder<Block, ? extends Block> FORM_ATTUNER = BLOCKS.register(
             "form_attuner",
             () -> new github.com.gengyoubo.sscnf.block.FormAttunerBlock(
                     BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.5F)
-                            .sound(net.minecraft.world.level.block.SoundType.METAL).noOcclusion())
+                            .sound(net.minecraft.world.level.block.SoundType.METAL).noOcclusion().forceSolidOff())
     );
 
     private ModBlocks() {

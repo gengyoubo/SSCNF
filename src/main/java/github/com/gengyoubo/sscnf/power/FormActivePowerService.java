@@ -9,6 +9,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import github.com.gengyoubo.sscnf.ShapeShifterCurseNeoForge;
 import github.com.gengyoubo.sscnf.api.SscApi;
+import github.com.gengyoubo.sscnf.api.SscManaMaximumEvent;
+import github.com.gengyoubo.sscnf.api.SscManaRecoveryEvent;
+import github.com.gengyoubo.sscnf.api.registry.SscJavaRegistries;
 import github.com.gengyoubo.sscnf.other.config.SscCommonConfig;
 import github.com.gengyoubo.sscnf.form.FormManager;
 
@@ -23,6 +26,9 @@ public final class FormActivePowerService {
     private static final String FAMILIAR_FOX_MANA = "shape-shifter-curse:familiar_fox_mana";
     private static final String WEB_RESOURCE = "shape-shifter-curse:web_resource";
     private static final float FAMILIAR_FOX_MAX_MANA = 100.0F;
+    private record ManaSnapshot(String type, float amount, float maximum) {}
+    private static final Map<UUID, ManaSnapshot> LAST_MANA_SYNC = new HashMap<>();
+    private static final java.util.Set<UUID> CALCULATING_MAXIMUM_MANA = new java.util.HashSet<>();
     private static final Map<UUID, Map<String, Boolean>> PRESSED_KEYS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Integer>> COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, ChargeState>> CHARGES = new HashMap<>();
@@ -53,12 +59,13 @@ public final class FormActivePowerService {
         else {
             Map<ResourceLocation, ChargeState> previous = CHARGES.remove(id);
             if (previous != null && player instanceof ServerPlayer serverPlayer)
-                previous.keySet().forEach(power -> syncCharge(serverPlayer, power, false));
+                previous.keySet().forEach(power -> syncCharge(serverPlayer, power, new JsonObject(), false, 0));
         }
         WATER_LAUNCH_GRACE.remove(id);
         AirJumpService.clearTransient(player);
         FrostDiveService.clear(player);
         SurfaceGrappleService.cancel(player);
+        if (!player.level().isClientSide) LAST_MANA_SYNC.remove(id);
     }
 
     public static void clearClientState() {
@@ -75,13 +82,23 @@ public final class FormActivePowerService {
         TOGGLES.remove(id);
         SPRINTING.remove(id);
         SPRINT_TO_SNEAK_TRIGGERED.remove(id);
-        // Fabric's ManaTypePower fills the active pool when the form gains it.
-        if (WEB_RESOURCE.equals(manaType(player))) setMana(player, maximumMana(player));
+        // Fabric's ManaTypePower#onGained fills the active pool, whatever its type, whenever a
+        // form gains it (every transformation, including commands).
+        fillActiveManaPool(player);
+    }
+
+    /** Fabric's ManaTypePower#onRespawn also refills the active pool. */
+    public static void onRespawn(ServerPlayer player) {
+        fillActiveManaPool(player);
+    }
+
+    private static void fillActiveManaPool(Player player) {
+        if (!player.level().isClientSide && hasActiveManaType(player)) setMana(player, maximumMana(player));
     }
 
     public static void setKeyPressed(ServerPlayer player, String key, boolean pressed) {
         if (!key.startsWith("key.shape-shifter-curse.") && !"key.jump".equals(key)
-                && !"key.sprint".equals(key)) {
+                && !"key.sprint".equals(key) && !SscJavaRegistries.isPowerKey(key)) {
             return;
         }
         Map<String, Boolean> keys = PRESSED_KEYS.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>());
@@ -94,7 +111,12 @@ public final class FormActivePowerService {
                     FormManager.current(player).id(), player.getFluidHeight(FluidTags.WATER),
                     player.isEyeInFluid(FluidTags.WATER), player.getDeltaMovement());
         }
+        if (!pressed && wasPressed) {
+            CustomPowerTypeService.keyReleased(player, key);
+        }
         if (pressed && !wasPressed) {
+            // Add-on power types see every press of their key, before SSC's built-in handling.
+            CustomPowerTypeService.keyPressed(player, key);
             if (FrostDiveService.tryStart(player, key)) return;
             if (toggle(player, key)) {
                 return;
@@ -164,6 +186,7 @@ public final class FormActivePowerService {
             if (pressed) {
                 triggerContinuousActive(serverPlayer, key);
                 charge(serverPlayer, key);
+                CustomPowerTypeService.keyHeld(serverPlayer, key);
             }
         });
     }
@@ -259,15 +282,18 @@ public final class FormActivePowerService {
     }
 
     public static void consumeMana(Player player, float amount) {
-        if (!hasMana(player, amount)) {
+        if (player.level().isClientSide || !Float.isFinite(amount) || amount < 0.0F || !hasMana(player, amount)) {
             return;
         }
         setMana(player, mana(player) - amount);
     }
 
-    /** Adds mana to the currently selected mana pool, clamped to that pool's maximum. */
+    /** Recover mana through the add-on hook, clamped to the currently selected pool's maximum. */
     public static void gainMana(Player player, float amount) {
-        setMana(player, mana(player) + amount);
+        if (!(player instanceof ServerPlayer serverPlayer) || !Float.isFinite(amount) || amount <= 0.0F) return;
+        SscManaRecoveryEvent event = new SscManaRecoveryEvent(serverPlayer, ResourceLocation.parse(manaType(player)), amount);
+        if (net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(event).isCanceled() || event.getAmount() == 0.0F) return;
+        setMana(player, mana(player) + event.getAmount());
     }
 
     /** Returns the current Apoli resource value. Cooldowns are exposed as 0/1, as in the source data. */
@@ -318,6 +344,10 @@ public final class FormActivePowerService {
     }
 
     public static float mana(Player player) {
+        return Math.max(0.0F, Math.min(maximumMana(player), storedMana(player)));
+    }
+
+    private static float storedMana(Player player) {
         String type = manaType(player);
         float initial = FAMILIAR_FOX_MANA.equals(type) ? 0.0F
                 : WEB_RESOURCE.equals(type) ? 100.0F : DEFAULT_MANA;
@@ -330,7 +360,7 @@ public final class FormActivePowerService {
         return mana(player) / maximumMana(player);
     }
 
-    private static float maximumMana(Player player) {
+    public static float maximumMana(Player player) {
         String type = manaType(player);
         float base = FAMILIAR_FOX_MANA.equals(type) ? FAMILIAR_FOX_MAX_MANA
                 : WEB_RESOURCE.equals(type) ? 100.0F : DEFAULT_MANA;
@@ -343,30 +373,61 @@ public final class FormActivePowerService {
                     FormPowerRuntime.floatValue(modifier, "add", 0.0F), Math::max);
         });
         for (float amount : bonuses.values()) base += amount;
-        return Math.max(1.0F, base);
+        float maximum = Math.max(1.0F, base);
+        if (!(player instanceof ServerPlayer serverPlayer) || !hasActiveManaType(player)
+                || !CALCULATING_MAXIMUM_MANA.add(player.getUUID())) return maximum;
+        try {
+            SscManaMaximumEvent event = new SscManaMaximumEvent(serverPlayer, ResourceLocation.parse(type), maximum);
+            net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(event);
+            return Math.max(1.0F, event.getMaximum());
+        } finally {
+            CALCULATING_MAXIMUM_MANA.remove(player.getUUID());
+        }
     }
 
-    private static void setMana(Player player, float value) {
+    /** Direct assignment, bypassing recovery hooks (also used for refills and refunds). */
+    public static void setMana(Player player, float value) {
+        if (player.level().isClientSide || !Float.isFinite(value)) return;
         String type = manaType(player);
         float maximum = maximumMana(player);
         float clamped = Math.max(0.0F, Math.min(maximum, value));
         SscApi.currentForm(player).ifPresent(data -> data.setManaPool(type, clamped));
         if (player instanceof ServerPlayer serverPlayer) {
-            github.com.gengyoubo.sscnf.network.ModNetwork.sendManaSync(serverPlayer, type, clamped, maximum);
+            sendManaSnapshot(serverPlayer, new ManaSnapshot(type, clamped, maximum), true);
         }
     }
 
     /** Pushes the active pool after login, respawn, dimension changes and form swaps. */
     public static void synchronizeMana(ServerPlayer player) {
+        synchronizeMana(player, true);
+    }
+
+    /** End-of-tick update for conditional capacity changes, without sending unchanged snapshots. */
+    public static void refreshMana(ServerPlayer player) {
+        synchronizeMana(player, false);
+    }
+
+    private static void synchronizeMana(ServerPlayer player, boolean force) {
         if (!hasActiveManaType(player)) {
-            github.com.gengyoubo.sscnf.network.ModNetwork.sendManaSync(player, "", 0.0F, DEFAULT_MANA);
+            sendManaSnapshot(player, new ManaSnapshot("", 0.0F, DEFAULT_MANA), force);
             return;
         }
         String type = manaType(player);
-        github.com.gengyoubo.sscnf.network.ModNetwork.sendManaSync(player, type, mana(player), maximumMana(player));
+        float maximum = maximumMana(player);
+        float current = storedMana(player);
+        float clamped = Math.max(0.0F, Math.min(maximum, current));
+        if (current != clamped) SscApi.currentForm(player).ifPresent(data -> data.setManaPool(type, clamped));
+        sendManaSnapshot(player, new ManaSnapshot(type, clamped, maximum), force);
     }
 
-    private static boolean hasActiveManaType(Player player) {
+    private static void sendManaSnapshot(ServerPlayer player, ManaSnapshot snapshot, boolean force) {
+        if (!force && snapshot.equals(LAST_MANA_SYNC.get(player.getUUID()))) return;
+        github.com.gengyoubo.sscnf.network.ModNetwork.sendManaSync(
+                player, snapshot.type(), snapshot.amount(), snapshot.maximum());
+        LAST_MANA_SYNC.put(player.getUUID(), snapshot);
+    }
+
+    public static boolean hasActiveManaType(Player player) {
         final boolean[] found = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("shape-shifter-curse:mana_type_power".equals(FormPowerRegistry.typeOf(power)) && power.has("mana_type")) {
@@ -376,7 +437,7 @@ public final class FormActivePowerService {
         return found[0];
     }
 
-    private static String manaType(Player player) {
+    public static String manaType(Player player) {
         final String[] type = {"shape-shifter-curse:generic_mana"};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("shape-shifter-curse:mana_type_power".equals(FormPowerRegistry.typeOf(power)) && power.has("mana_type")) {
@@ -391,6 +452,16 @@ public final class FormActivePowerService {
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"shape_shifter_curse:active_self".equals(FormPowerRegistry.typeOf(power)) || usesKey(power, key)
                     || isOnCooldown(player, id)) {
+                return;
+            }
+            // The efficiency perk replaces the original water burst with a child
+            // active power. A fountain belt replaces that burst too, while the
+            // perk's separate attack improvement must remain active.
+            if ("shape-shifter-curse:perks/axolotl_water_magic_efficiency".equals(id.toString())
+                    && (FormPowerRegistry.has(player, ResourceLocation.fromNamespaceAndPath(
+                            "shape-shifter-curse", "form_axolotl_fountain_belt_trinket"))
+                    || FormPowerRegistry.has(player, ResourceLocation.fromNamespaceAndPath(
+                            "shape-shifter-curse", "form_axolotl_fountain_belt_trinket_plus")))) {
                 return;
             }
             JsonObject condition = power.has("condition") ? power.getAsJsonObject("condition") : power.getAsJsonObject("entity_condition");
@@ -511,7 +582,7 @@ public final class FormActivePowerService {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject("start_action"));
                 state = new ChargeState();
                 states.put(id, state);
-                syncCharge(player, id, true);
+                syncCharge(player, id, power, true, 0);
             }
             state.lastUseTick = player.tickCount;
             state.ticks++;
@@ -534,6 +605,7 @@ public final class FormActivePowerService {
                                 FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "charge_complete_action"));
                                 state.tier = tier;
                                 justCompleted = true;
+                                syncCharge(player, id, power, true, tier);
                             }
                         }
                     }
@@ -548,7 +620,7 @@ public final class FormActivePowerService {
                 if (justCompleted && autoFire != null && FormPowerRuntime.test(player, player, autoFire)) {
                     fireCharge(player, id, power, state);
                     states.remove(id);
-                    syncCharge(player, id, false);
+                    syncCharge(player, id, power, false, 0);
                     break;
                 }
             }
@@ -569,7 +641,7 @@ public final class FormActivePowerService {
             if (!keys.getOrDefault(key, false) && player.tickCount - state.lastUseTick > 2) {
                 if (!isOnCooldown(player, id)) fireCharge(serverPlayer, id, power, state);
                 states.remove(id);
-                syncCharge(serverPlayer, id, false);
+                syncCharge(serverPlayer, id, power, false, 0);
             }
         });
     }
@@ -588,9 +660,13 @@ public final class FormActivePowerService {
         var states = CLIENT_CHARGES.computeIfAbsent(player.getUUID(), ignored -> new java.util.HashSet<>());
         if (charging) states.add(id); else states.remove(id);
     }
-    private static void syncCharge(ServerPlayer player, ResourceLocation id, boolean charging) {
+    /** Also carries the completed tier under the power's {@code charge_power_id} for the HUD. */
+    private static void syncCharge(ServerPlayer player, ResourceLocation id, JsonObject power,
+                                   boolean charging, int tier) {
+        String chargeKey = FormPowerRuntime.stringValue(power, "charge_power_id", id.toString());
         if (player.connection != null && player.connection.isAcceptingMessages())
-            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new github.com.gengyoubo.sscnf.network.ChargeStatePacket(id, charging));
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,
+                    new github.com.gengyoubo.sscnf.network.ChargeStatePacket(id, charging, chargeKey, tier));
     }
 
     private static void fireCharge(ServerPlayer player, ResourceLocation id, JsonObject power, ChargeState state) {

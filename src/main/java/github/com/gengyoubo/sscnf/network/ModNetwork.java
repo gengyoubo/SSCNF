@@ -18,7 +18,7 @@ import java.util.Set;
 public final class ModNetwork {
     private ModNetwork() {}
     public static void initialize(net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent event) {
-        var registrar = event.registrar("1");
+        var registrar = event.registrar("2");
         registrar.playToClient(ChargeStatePacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> ChargeStatePacket.encode(packet, buffer), ChargeStatePacket::decode), ChargeStatePacket::handle);
         registrar.playToClient(FrostDiveStatePacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> FrostDiveStatePacket.encode(packet, buffer), FrostDiveStatePacket::decode), FrostDiveStatePacket::handle);
         registrar.playToClient(PowerResourcePacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> PowerResourcePacket.encode(packet, buffer), PowerResourcePacket::decode), PowerResourcePacket::handle);
@@ -47,6 +47,12 @@ public final class ModNetwork {
         registrar.playToClient(SyncForcedSneakingPacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> SyncForcedSneakingPacket.encode(packet, buffer), SyncForcedSneakingPacket::decode), SyncForcedSneakingPacket::handle);
         registrar.playToServer(RequestPowerAnimationPacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> RequestPowerAnimationPacket.encode(packet, buffer), RequestPowerAnimationPacket::decode), RequestPowerAnimationPacket::handle);
         registrar.playToClient(DietSyncPacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> DietSyncPacket.encode(packet, buffer), DietSyncPacket::decode), DietSyncPacket::handle);
+        registrar.playToClient(OpenRippleMirrorPacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> OpenRippleMirrorPacket.encode(packet, buffer), OpenRippleMirrorPacket::decode), OpenRippleMirrorPacket::handle);
+        registrar.playToServer(SelectMirrorFormPacket.TYPE, net.minecraft.network.codec.StreamCodec.of((buffer, packet) -> SelectMirrorFormPacket.encode(packet, buffer), SelectMirrorFormPacket::decode), SelectMirrorFormPacket::handle);
+    }
+
+    public static void sendOpenRippleMirror(ServerPlayer player, java.util.List<ResourceLocation> forms) {
+        PacketDistributor.sendToPlayer(player, new OpenRippleMirrorPacket(forms));
     }
 
     public static void sendFormSync(ServerPlayer player) {

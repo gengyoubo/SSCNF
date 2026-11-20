@@ -43,7 +43,8 @@ public final class PlayerDataEvents {
             github.com.gengyoubo.sscnf.power.SurfaceGrappleService.recoverAfterLogin(player);
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new github.com.gengyoubo.sscnf.network.GameplayConfigPacket(
                     github.com.gengyoubo.sscnf.other.config.SscCommonConfig.FOOD_HABIT.get(),
-                    github.com.gengyoubo.sscnf.other.config.SscCommonConfig.FULL_STACK_UPGRADE.get()));
+                    github.com.gengyoubo.sscnf.other.config.SscCommonConfig.FULL_STACK_UPGRADE.get(),
+                    github.com.gengyoubo.sscnf.other.config.SscCommonConfig.SHIFT_CRAWL.get()));
             github.com.gengyoubo.sscnf.other.initial.InitialFormService.applyOnce(player);
             SscAdvancementTriggers.ON_FIRST_JOIN_WITH_MOD.trigger(player);
             ModNetwork.sendFormSync(player);
@@ -72,6 +73,7 @@ public final class PlayerDataEvents {
             ModNetwork.sendSkinSync(player);
             SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
             CursedMoonService.sendDaySync(player);
+            FormActivePowerService.onRespawn(player);
             FormActivePowerService.synchronizeMana(player);
             InstinctService.synchronizeHud(player);
         }

@@ -20,6 +20,7 @@ import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import github.com.gengyoubo.sscnf.ShapeShifterCurseNeoForge;
+import github.com.gengyoubo.sscnf.form.FormManager;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -159,7 +160,9 @@ public final class MissingPowerEvents {
 
     /** Shared by the armor slot, right-click equip and server fallback paths. */
     public static boolean isArmorRestricted(Player player, EquipmentSlot slot, ItemStack stack) {
-        if (stack.isEmpty()) return false;
+        if (stack.isEmpty() || (slot == EquipmentSlot.HEAD && FormManager.current(player).stage() == 4
+                && stack.is(net.minecraft.tags.ItemTags.create(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("tc4modern", "form_eye_goggles"))))) return false;
         final boolean[] restricted = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (restricted[0] || !"shape_shifter_curse:restrict_armor".equals(FormPowerRegistry.typeOf(power))) return;

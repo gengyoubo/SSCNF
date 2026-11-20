@@ -120,7 +120,11 @@ public final class FormPowerRegistry {
         if (FormRegistry.get(formId) == null) {
             return List.of();
         }
-        return List.copyOf(SscJavaRegistries.powersForForm(formId));
+        LinkedHashSet<ResourceLocation> assigned = new LinkedHashSet<>(SscJavaRegistries.powersForForm(formId));
+        // Sub-forms reshape the inherited master set (Fabric ISubForm#afterApplyLayer: add, then remove).
+        assigned.addAll(FormRegistry.subFormPowerAdds(formId));
+        FormRegistry.subFormPowerRemoves(formId).forEach(assigned::remove);
+        return List.copyOf(assigned);
     }
 
     public static void register(ResourceLocation id, JsonObject data) {
@@ -136,6 +140,15 @@ public final class FormPowerRegistry {
 
     public static boolean has(Player player, ResourceLocation id) {
         return idsFor(player).contains(id);
+    }
+
+    /** Whether any active (including nested {@code apoli:multiple}) power has this type. */
+    public static boolean hasActiveType(Player player, String type) {
+        final boolean[] found = {false};
+        visitActive(player, (id, power) -> {
+            if (!found[0] && type.equals(typeOf(power))) found[0] = true;
+        });
+        return found[0];
     }
 
     public static void visitActive(Player player, BiConsumer<ResourceLocation, JsonObject> visitor) {

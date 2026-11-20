@@ -1,7 +1,6 @@
 package github.com.gengyoubo.sscnf.client.render;
 
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.client.Minecraft;
 import github.com.gengyoubo.sscnf.ShapeShifterCurseNeoForge;
 
 import java.lang.reflect.Constructor;
@@ -18,7 +17,7 @@ public final class PlayerAnimatorCompat {
 
     /** Null for normal world/vanilla-hand rendering, including every remote player. */
     public static ArmVisibility firstPersonArms(Player player) {
-        if (API == null || failed || player != Minecraft.getInstance().player || !API.playerType.isInstance(player)) {
+        if (API == null || failed || !FirstPersonModelCompat.isLocalFirstPerson(player) || !API.playerType.isInstance(player)) {
             return null;
         }
         try {

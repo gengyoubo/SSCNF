@@ -6,10 +6,10 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-public record GameplayConfigPacket(boolean foodHabit, boolean fullStack) implements CustomPacketPayload {
+public record GameplayConfigPacket(boolean foodHabit, boolean fullStack, boolean shiftCrawl) implements CustomPacketPayload {
     public static final Type<GameplayConfigPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("shape_shifter_curse", "gameplay_config"));
     @Override public Type<GameplayConfigPacket> type() { return TYPE; }
-    public static void encode(GameplayConfigPacket packet, RegistryFriendlyByteBuf buffer) { buffer.writeBoolean(packet.foodHabit); buffer.writeBoolean(packet.fullStack); }
-    public static GameplayConfigPacket decode(RegistryFriendlyByteBuf buffer) { return new GameplayConfigPacket(buffer.readBoolean(), buffer.readBoolean()); }
-    public static void handle(GameplayConfigPacket packet, IPayloadContext context) { context.enqueueWork(() -> GameplayConfigState.setClient(packet.foodHabit, packet.fullStack)); }
+    public static void encode(GameplayConfigPacket packet, RegistryFriendlyByteBuf buffer) { buffer.writeBoolean(packet.foodHabit); buffer.writeBoolean(packet.fullStack); buffer.writeBoolean(packet.shiftCrawl); }
+    public static GameplayConfigPacket decode(RegistryFriendlyByteBuf buffer) { return new GameplayConfigPacket(buffer.readBoolean(), buffer.readBoolean(), buffer.readBoolean()); }
+    public static void handle(GameplayConfigPacket packet, IPayloadContext context) { context.enqueueWork(() -> GameplayConfigState.setClient(packet.foodHabit, packet.fullStack, packet.shiftCrawl)); }
 }

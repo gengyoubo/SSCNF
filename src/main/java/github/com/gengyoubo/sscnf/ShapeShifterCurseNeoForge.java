@@ -51,6 +51,7 @@ public final class ShapeShifterCurseNeoForge {
         ModRecipeSerializers.TYPES.register(modBus);
         ModEffects.EFFECTS.register(modBus);
         ModPotions.POTIONS.register(modBus);
+        github.com.gengyoubo.sscnf.registry.ModSounds.SOUNDS.register(modBus);
         modBus.addListener(this::commonSetup);
         github.com.gengyoubo.sscnf.other.initial.InitialFormService.initialize();
         SscAdvancementTriggers.initialize(modBus);

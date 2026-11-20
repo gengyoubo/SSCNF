@@ -156,7 +156,8 @@ public final class FormPowerRuntime {
                     && (!condition.has("entity_condition")
                     || testEntity(actor, target, condition.getAsJsonObject("entity_condition")));
             case "shape_shifter_curse:raycast" -> raycast(actor, condition);
-            case "shape-shifter-curse:barehand_digging" -> barehandDigging(actor);
+            case "shape-shifter-curse:barehand_digging", "shape-shifter-curse:can_barehand_digging"
+                    -> barehandDigging(actor);
             case "shape-shifter-curse:blocking" -> actor.isBlocking();
             case "shape-shifter-curse:mana_compare" -> compare(FormActivePowerService.mana(actor), condition);
             case "shape-shifter-curse:charging" -> {
@@ -195,6 +196,7 @@ public final class FormPowerRuntime {
                     >= doubleValue(condition, "mana_percent", 0.0D);
             case "shape-shifter-curse:instinct_value" -> compare(InstinctService.value(actor), condition);
             case "shape-shifter-curse:is_sleep" -> actor.isSleeping();
+            case "shape-shifter-curse:is_spectator" -> actor.isSpectator();
             case "shape-shifter-curse:check_stored_item" -> ItemStoreService.check(
                     target instanceof Player targetPlayer ? targetPlayer : actor, condition);
             case "shape_shifter_curse:target_condition" -> target != null && testEntity(actor, target, condition.getAsJsonObject("condition"));
@@ -249,10 +251,15 @@ public final class FormPowerRuntime {
         return github.com.gengyoubo.sscnf.client.ClientHudState.canDisplayGui();
     }
 
-    private static boolean barehandDigging(Player actor) {        ItemStack stack = actor.getMainHandItem();
+    /**
+     * Fabric's DiggingBareHandCondition: an empty hand, any non-tool item, or a tool whose tier
+     * level is 0 or below (wood/gold) all count as digging bare-handed.
+     */
+    private static boolean barehandDigging(Player actor) {
+        ItemStack stack = actor.getMainHandItem();
         if (stack.isEmpty()) return true;
-        return stack.getItem() instanceof net.minecraft.world.item.TieredItem tiered
-                && tierLevel(tiered.getTier()) <= 0;
+        return !(stack.getItem() instanceof net.minecraft.world.item.TieredItem tiered)
+                || tierLevel(tiered.getTier()) <= 0;
     }
 
     private static boolean itemInCooldown(Player actor, JsonObject condition) {
@@ -451,6 +458,7 @@ public final class FormPowerRuntime {
                     if (found != null) executeBiEntity(actor, found, action.getAsJsonObject("bientity_action"));
                 }
             }
+            case "apoli:delay", "shape_shifter_curse:delay" -> scheduleDelayed(actor, recipient, action);
             case "shape_shifter_curse:area_of_effect" -> {
                 if (!recipient.level().isClientSide) {
                     double radius = Math.max(0, doubleValue(action, "radius", 0));
@@ -1696,6 +1704,19 @@ public final class FormPowerRuntime {
     }
 
 
+    private static void scheduleDelayed(Player actor, LivingEntity recipient, JsonObject action) {
+        if (actor.level().isClientSide || !(actor.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return;
+        }
+        JsonObject delayed = action.getAsJsonObject("action");
+        if (delayed == null) return;
+        int ticks = Math.max(0, intValue(action, "ticks", 0));
+        serverLevel.getServer().tell(new net.minecraft.server.TickTask(ticks, () -> {
+            if (actor.isRemoved()) return;
+            execute(actor, recipient.isRemoved() ? actor : recipient, delayed);
+        }));
+    }
+
     private static void spawnParticles(Player actor, LivingEntity recipient, JsonObject action) {
         if (!(recipient.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) return;
         JsonElement particle = action.get("particle");
@@ -1874,6 +1895,7 @@ public final class FormPowerRuntime {
                     dx * knockback, dy * knockback, dz * knockback));
             if (candidate instanceof LivingEntity living) {
                 execute(actor, living, action.getAsJsonObject("entity_action"));
+                executeBiEntity(actor, living, action.getAsJsonObject("bientity_action"));
             }
             candidate.hurtMarked = true;
         }

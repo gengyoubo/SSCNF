@@ -94,6 +94,7 @@ public final class SscConfigScreen extends Screen {
             bool("enable_form_random_sound", SscClientConfig.CUSTOM_ENABLE_FORM_RANDOM_SOUND);
         } else {
             bool("immediate_transform", SscCommonConfig.IMMEDIATE_TRANSFORM);
+            bool("shift_crawl", SscCommonConfig.SHIFT_CRAWL);
             bool("food_habit", SscCommonConfig.FOOD_HABIT);
             bool("full_stack_upgrade", SscCommonConfig.FULL_STACK_UPGRADE);
             bool("initial_form_enabled", SscCommonConfig.ENABLE_INITIAL_FORM);

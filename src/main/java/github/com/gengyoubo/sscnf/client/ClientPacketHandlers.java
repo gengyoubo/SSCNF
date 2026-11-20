@@ -6,7 +6,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import github.com.gengyoubo.sscnf.client.codex.FormColorSelectMenuV2;
 import github.com.gengyoubo.sscnf.client.codex.NormalFormSelectScreen;
-import github.com.gengyoubo.sscnf.client.screen.FormAttunerScreen;
+import github.com.gengyoubo.sscnf.client.screen.FormUpgradeScreen;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.Set;
 import java.util.UUID;
@@ -28,9 +29,22 @@ public final class ClientPacketHandlers {
     private ClientPacketHandlers() {
     }
 
+    /** Completed charge tier for the web resource bar (Fabric's {@code ChargePower.renderTier}). */
+    public static void setChargeTier(String chargeKey, int tier) {
+        ManaClientState.setChargeTier(chargeKey, tier);
+    }
+
     public static void openSelectForm(String targetName, UUID targetUUID) {
         Minecraft.getInstance().setScreen(new NormalFormSelectScreen(
                 Component.literal("FormSelectScreen"), targetName, targetUUID));
+    }
+
+    public static void openRippleMirror(java.util.List<ResourceLocation> forms) {
+        var minecraft = Minecraft.getInstance();
+        if (minecraft.player != null) {
+            minecraft.setScreen(new github.com.gengyoubo.sscnf.client.codex.RippleMirrorSelectScreen(
+                    minecraft.player.getGameProfile().getName(), minecraft.player.getUUID(), forms));
+        }
     }
 
     public static void openColorMenu() {
@@ -41,10 +55,21 @@ public final class ClientPacketHandlers {
         }
     }
 
+    /** Like Fabric, the attuner opens the skill tree directly; refreshes update it in place. */
     public static void openFormAttuner(int level, int maxLevel, String formGroupId,
                                        Set<String> unlockedPerks, String statusKey) {
-        Minecraft.getInstance().setScreen(new FormAttunerScreen(
-                level, maxLevel, formGroupId, unlockedPerks, statusKey));
+        ResourceLocation groupId = ResourceLocation.tryParse(formGroupId == null ? "" : formGroupId);
+        Set<ResourceLocation> unlocked = new java.util.LinkedHashSet<>();
+        if (unlockedPerks != null) for (String perkId : unlockedPerks) {
+            ResourceLocation id = ResourceLocation.tryParse(perkId);
+            if (id != null) unlocked.add(id);
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen instanceof FormUpgradeScreen open && java.util.Objects.equals(open.formGroupId(), groupId)) {
+            open.update(level, unlocked, statusKey);
+            return;
+        }
+        minecraft.setScreen(new FormUpgradeScreen(level, groupId, unlocked, statusKey));
     }
 
     public static void setInstinct(float value, float rate, boolean visible, boolean locked) {

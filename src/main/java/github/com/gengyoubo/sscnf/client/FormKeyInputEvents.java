@@ -52,6 +52,13 @@ Minecraft minecraft = Minecraft.getInstance();
                 }
             }
         }
+        for (KeyMapping key : SscClientKeys.keys()) {
+            boolean pressed = key.isDown();
+            if (pressed != LAST_STATE.getOrDefault(key, false)) {
+                net.neoforged.neoforge.network.PacketDistributor.sendToServer(new ActivePowerKeyPacket(key.getName(), pressed));
+                LAST_STATE.put(key, pressed);
+            }
+        }
         KeyMapping jump = minecraft.options.keyJump;
         github.com.gengyoubo.sscnf.power.LevitatePowerService.tick(minecraft.player, jump.isDown());
         boolean pressed = jump.isDown();

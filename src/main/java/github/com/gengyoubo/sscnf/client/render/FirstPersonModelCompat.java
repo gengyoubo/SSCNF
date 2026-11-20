@@ -1,66 +1,137 @@
 package github.com.gengyoubo.sscnf.client.render;
 
 import com.mojang.logging.LogUtils;
-import github.com.gengyoubo.sscnf.ShapeShifterCurseNeoForge;
-import github.com.gengyoubo.sscnf.form.FormBodyType;
-import github.com.gengyoubo.sscnf.form.FormManager;
-import github.com.gengyoubo.sscnf.other.config.SscClientConfig;
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import github.com.gengyoubo.sscnf.ShapeShifterCurseNeoForge;
+import github.com.gengyoubo.sscnf.form.FormBodyType;
+import github.com.gengyoubo.sscnf.form.FormDefinition;
+import github.com.gengyoubo.sscnf.form.FormManager;
+import github.com.gengyoubo.sscnf.other.config.SscClientConfig;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+/**
+ * Fabric's First-person Model (FPM) linkage: feral forms shift FPM's body X offsets so the
+ * quadruped body sits behind the camera (12 on FPM 2.6.0+, -25 before), and a form change
+ * resets them to 0 for one second. Done by reflection so FPM stays an optional mod.
+ */
 @net.neoforged.fml.common.EventBusSubscriber(modid = ShapeShifterCurseNeoForge.MOD_ID, value = Dist.CLIENT)
 public final class FirstPersonModelCompat {
-    private static boolean resolved, newer, changed;
-    private static Field instance;
-    private static Method getConfig, enabled;
-    private static int[] original;
-    private FirstPersonModelCompat() {}
+    private static final String MOD_ID = "firstperson";
+    private static final int RESET_TICKS = 20;
+    private static boolean resolved;
+    private static Field instanceField;
+    private static Method getConfig;
+    private static Method isRenderingPlayer;
+    private static boolean newVersion;
+    private static boolean versionCheckFailed;
+    private static ResourceLocation lastForm;
+    private static int resetTicks;
 
-    @SubscribeEvent public static void tick(ClientTickEvent.Post event) {
-        if (!resolve()) return;
-        Minecraft mc = Minecraft.getInstance();
-        boolean active = SscClientConfig.CHANGE_FPM_CONFIG.get() && mc.player != null
-                && mc.options.getCameraType().isFirstPerson() && isEnabled()
-                && FormManager.current(mc.player).bodyType() == FormBodyType.FERAL;
+    private FirstPersonModelCompat() {
+    }
+
+    @SubscribeEvent
+    public static void tick(ClientTickEvent.Post event) {
+        if (!SscClientConfig.CHANGE_FPM_CONFIG.get()
+                || !resolve() || getConfig == null) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) {
+            lastForm = null;
+            resetTicks = 0;
+            return;
+        }
+        FormDefinition form = FormManager.current(minecraft.player);
+        if (lastForm != null && !lastForm.equals(form.id())) {
+            resetTicks = RESET_TICKS;
+        }
+        lastForm = form.id();
+        if (resetTicks > 0) {
+            resetTicks--;
+            setOffsets(0);
+        }
+        if (form.bodyType() == FormBodyType.FERAL && isLocalFirstPerson(minecraft.player)
+                && !versionCheckFailed && getConfig != null) {
+            setOffsets(newVersion ? 12 : -25);
+        }
+    }
+
+    /** Camera/body rendering only: a shader shadow needs the complete world model. */
+    static boolean isLocalFirstPerson(Player player) {
+        Minecraft minecraft = Minecraft.getInstance();
+        return player == minecraft.player && player == minecraft.getCameraEntity()
+                && minecraft.options.getCameraType().isFirstPerson() && !ShaderRenderCompat.isShadowPass();
+    }
+
+    /** Whether the current player render is First-person Model's body pass. */
+    static boolean isRenderingPlayer() {
+        if (ShaderRenderCompat.isShadowPass() || !resolve() || isRenderingPlayer == null) {
+            return false;
+        }
         try {
-            Object config = config();
-            if (config == null) return;
-            String[] names = {"xOffset", "sitXOffset", "sneakXOffset"};
-            if (active && !changed) {
-                original = new int[3];
-                for (int i = 0; i < 3; i++) original[i] = config.getClass().getField(names[i]).getInt(config);
-                changed = true;
-            }
-            if (active) for (String name : names) config.getClass().getField(name).setInt(config, newer ? 12 : -25);
-            else if (changed) {
-                for (int i = 0; i < 3; i++) config.getClass().getField(names[i]).setInt(config, original[i]);
-                changed = false;
-            }
-        } catch (ReflectiveOperationException | RuntimeException ex) { LogUtils.getLogger().warn("First-person Model offset integration failed", ex); instance = null; }
+            Object core = instanceField.get(null);
+            return core != null && (boolean) isRenderingPlayer.invoke(core);
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            LogUtils.getLogger().warn("Disabling First-person Model render-pass detection", exception);
+            isRenderingPlayer = null;
+            return false;
+        }
     }
-    public static boolean isEnabled() {
-        if (!resolve()) return false;
-        try { Object core = instance.get(null); return core != null && (boolean) enabled.invoke(core); }
-        catch (ReflectiveOperationException | RuntimeException ex) { LogUtils.getLogger().warn("First-person Model integration failed", ex); instance = null; return false; }
-    }
-    private static Object config() throws ReflectiveOperationException {
-        Object core = instance.get(null); return core == null ? null : getConfig.invoke(core);
-    }
+
     private static boolean resolve() {
-        if (resolved) return instance != null;
+        if (resolved) {
+            return instanceField != null;
+        }
         resolved = true;
-        if (!ModList.get().isLoaded("firstperson")) return false;
+        if (!ModList.get().isLoaded(MOD_ID)) {
+            return false;
+        }
         try {
-            Class<?> type = Class.forName("dev.tr7zw.firstperson.FirstPersonModelCore");
-            instance = type.getField("instance"); getConfig = type.getMethod("getConfig"); enabled = type.getMethod("isEnabled");
-            newer = ModList.get().getModContainerById("firstperson").map(mod -> mod.getModInfo().getVersion().compareTo(new DefaultArtifactVersion("2.6.0")) >= 0).orElse(false);
-            return true;
-        } catch (ReflectiveOperationException | RuntimeException ex) { LogUtils.getLogger().warn("First-person Model API unavailable", ex); instance = null; return false; }
+            Class<?> core = Class.forName("dev.tr7zw.firstperson.FirstPersonModelCore");
+            instanceField = core.getField("instance");
+            getConfig = core.getMethod("getConfig");
+            isRenderingPlayer = core.getMethod("isRenderingPlayer");
+        } catch (ReflectiveOperationException | LinkageError exception) {
+            LogUtils.getLogger().warn("First-person Model is loaded but its integration API was not found", exception);
+            instanceField = null;
+            return false;
+        }
+        try {
+            newVersion = ModList.get().getModContainerById(MOD_ID)
+                    .map(container -> container.getModInfo().getVersion()
+                            .compareTo(new DefaultArtifactVersion("2.6.0")) >= 0)
+                    .orElse(false);
+        } catch (RuntimeException exception) {
+            LogUtils.getLogger().error("Failed to check FirstPerson Mod version");
+            versionCheckFailed = true;
+        }
+        return true;
+    }
+
+    private static void setOffsets(int offset) {
+        try {
+            Object core = instanceField.get(null);
+            Object config = core == null ? null : getConfig.invoke(core);
+            if (config == null) {
+                return;
+            }
+            Class<?> type = config.getClass();
+            type.getField("xOffset").setInt(config, offset);
+            type.getField("sitXOffset").setInt(config, offset);
+            type.getField("sneakXOffset").setInt(config, offset);
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            LogUtils.getLogger().warn("Disabling First-person Model offset sync", exception);
+            getConfig = null;
+        }
     }
 }

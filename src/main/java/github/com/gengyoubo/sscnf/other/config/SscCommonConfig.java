@@ -42,6 +42,9 @@ public final class SscCommonConfig {
     public static final ModConfigSpec.BooleanValue IMMEDIATE_TRANSFORM = BUILDER
             .comment("Skip transformation animation and apply form changes immediately.")
             .define("transform.immediately", false);
+    public static final ModConfigSpec.BooleanValue SHIFT_CRAWL = BUILDER
+            .comment("Use crawling instead of crouching when holding sneak for forms with a crawling power (built-in: axolotl stages 2 and 3).")
+            .define("gameplay.shift_crawl", true);
     public static final ModConfigSpec.BooleanValue FOOD_HABIT = BUILDER.define("gameplay.food_habit", true);
     public static final ModConfigSpec.BooleanValue FULL_STACK_UPGRADE = BUILDER.define("gameplay.full_stack_upgrade", true);
     public static final ModConfigSpec.BooleanValue ENABLE_INITIAL_FORM = BUILDER.define("initial_form.enabled", false);

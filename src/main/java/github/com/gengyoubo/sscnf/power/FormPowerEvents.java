@@ -115,6 +115,7 @@ public final class FormPowerEvents {
                     tickClientMovementAction(player, id, power, currentMovementActions));
             Map<ResourceLocation, Integer> phases = CLIENT_MOVEMENT_ACTION_PHASES.get(player.getUUID());
             if (phases != null) phases.keySet().retainAll(currentMovementActions);
+            CustomPowerTypeService.clientTick(player);
             logAxolotlMovementState(player);
             enforceSprinting(player);
             applyClimbing(player);
@@ -132,6 +133,7 @@ public final class FormPowerEvents {
         enforceSprinting(player);
         adjustFoodHealTimer(player);
         SscJavaRegistries.tickActivePowers(player);
+        CustomPowerTypeService.tick((net.minecraft.server.level.ServerPlayer) player);
         FormPowerRegistry.visitActive(player, (id, power) -> tickPower(player, id, power));
         applyClimbing(player);
         maintainBreathingAndImmunity(player);
@@ -145,6 +147,7 @@ public final class FormPowerEvents {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
                 BatAttachService.forget(player);
                 PowerAnimationService.forget(player);
+                CustomPowerTypeService.forget(player);
             }
         }
     }
@@ -157,6 +160,7 @@ public final class FormPowerEvents {
         tickCustomWaterBreathing(player);
         if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
             MovementPowerService.synchronizeForcedSneakingIfChanged(serverPlayer);
+            FormActivePowerService.refreshMana(serverPlayer);
         }
 
     }
@@ -881,13 +885,25 @@ public final class FormPowerEvents {
         return ids;
     }
 
+    /** Ends a sprint already in progress when a prevent_sprinting power becomes active. */
     private static void enforceSprinting(Player player) {
+        if (player.isSprinting() && preventsSprinting(player)) player.setSprinting(false);
+    }
+
+    /**
+     * Whether an active apoli:prevent_sprinting power applies. Apoli makes the client's
+     * "can sprint" check fail, so sprinting never starts; Forge blocks setSprinting(true) for
+     * the same result (PreventSprintingMixin), on both logical sides.
+     */
+    public static boolean preventsSprinting(Player player) {
+        final boolean[] prevent = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if ("shape_shifter_curse:prevent_sprinting".equals(FormPowerRegistry.typeOf(power))
+            if (!prevent[0] && "shape_shifter_curse:prevent_sprinting".equals(FormPowerRegistry.typeOf(power))
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                player.setSprinting(false);
+                prevent[0] = true;
             }
         });
+        return prevent[0];
     }
 
     private static boolean matchesProjectile(Projectile projectile, JsonObject condition) {

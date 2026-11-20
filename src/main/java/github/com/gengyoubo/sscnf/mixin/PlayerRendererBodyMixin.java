@@ -14,6 +14,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import net.minecraft.world.phys.Vec3;
+import github.com.gengyoubo.sscnf.form.FormBodyType;
 
 /**
  * Mirrors PAL's {@code PlayerRendererMixin#applyBodyTransforms}: the {@code body} clip
@@ -29,6 +32,35 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 // Run the SSC root after PlayerAnimator's priority-1000 root injection.
 @Mixin(value = net.minecraft.client.renderer.entity.player.PlayerRenderer.class, priority = 1100)
 public abstract class PlayerRendererBodyMixin {
+    /**
+     * Feral forms carry items in the mouth (FeralMouthItemLayer), like vanilla's fox, so the
+     * humanoid hand poses (item, block, bow, crossbow...) must not reach the front legs. Feral
+     * clips that only move a leg keep its vanilla rotation (PAL semantics), which otherwise
+     * lifted the right front paw whenever an item was held. Runs before RenderPlayerEvent.Pre,
+     * so the Geo pre-pass and the vanilla pass both see it.
+     */
+    @Inject(method = "setModelProperties(Lnet/minecraft/client/player/AbstractClientPlayer;)V", at = @At("RETURN"))
+    private void ssc$feralArmPoses(AbstractClientPlayer player, CallbackInfo ci) {
+        if (FormManager.current(player).bodyType() != FormBodyType.FERAL) return;
+        net.minecraft.client.model.PlayerModel<AbstractClientPlayer> model =
+                ((net.minecraft.client.renderer.entity.player.PlayerRenderer) (Object) this).getModel();
+        model.rightArmPose = net.minecraft.client.model.HumanoidModel.ArmPose.EMPTY;
+        model.leftArmPose = net.minecraft.client.model.HumanoidModel.ArmPose.EMPTY;
+    }
+
+    /**
+     * Fabric's {@code FeralPlayerEntityRendererMixin}: feral clips author their own crouch, so
+     * vanilla's 2px sneak drop must not lower the form, armor and held items again.
+     */
+    @Inject(method = "getRenderOffset(Lnet/minecraft/client/player/AbstractClientPlayer;F)Lnet/minecraft/world/phys/Vec3;",
+            at = @At("RETURN"), cancellable = true)
+    private void ssc$cancelFeralSneakOffset(AbstractClientPlayer player, float partialTick,
+                                            CallbackInfoReturnable<Vec3> cir) {
+        if (FormManager.current(player).bodyType() == FormBodyType.FERAL) {
+            cir.setReturnValue(Vec3.ZERO);
+        }
+    }
+
     @Inject(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFFF)V",
             at = @At("HEAD"))
     private void ssc$scaleForm(AbstractClientPlayer player, PoseStack poseStack,

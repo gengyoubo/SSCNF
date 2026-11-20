@@ -55,7 +55,7 @@ public final class SurfaceGrappleService {
             }
             state.charging = false;
             if (destination == null) {
-                FormActivePowerService.gainMana(player, manaCost(state.power));
+                refund(player, state);
                 STATES.remove(player.getUUID());
                 return;
             }
@@ -128,7 +128,7 @@ public final class SurfaceGrappleService {
         State state = STATES.remove(player.getUUID());
         if (state == null) return;
         if (state.charging && FormActivePowerService.hasWebMana(player)) {
-            FormActivePowerService.gainMana(player, manaCost(state.power));
+            refund(player, state);
         }
         if (state.destination != null) {
             player.setNoGravity(state.savedGravity);
@@ -136,6 +136,11 @@ public final class SurfaceGrappleService {
             player.setDeltaMovement(Vec3.ZERO);
             player.hurtMarked = true;
         }
+    }
+
+    /** Refunds directly: a cancelled grapple is not a mana recovery, so it bypasses recovery hooks. */
+    private static void refund(Player player, State state) {
+        FormActivePowerService.setMana(player, FormActivePowerService.mana(player) + manaCost(state.power));
     }
 
     /** Restores gravity for a player whose flight was cut off without {@link #cancel}, such as by a crash. */

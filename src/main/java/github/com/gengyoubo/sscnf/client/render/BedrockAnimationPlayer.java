@@ -65,13 +65,14 @@ public final class BedrockAnimationPlayer {
             BoneAnimation animation = entry.getValue();
             Vec3 rotation = sample(animation.rotation, time);
             Vec3 position = sample(animation.position, time);
+            Vec3 scale = sample(animation.scale, time);
             switch (entry.getKey()) {
-                case "head" -> applyPart(model.head, rotation, position, Pivot.HEAD);
-                case "torso" -> applyPart(model.body, rotation, position, Pivot.TORSO);
-                case "rightArm" -> applyPart(model.rightArm, rotation, position, Pivot.RIGHT_ARM);
-                case "leftArm" -> applyPart(model.leftArm, rotation, position, Pivot.LEFT_ARM);
-                case "rightLeg" -> applyPart(model.rightLeg, rotation, position, Pivot.RIGHT_LEG);
-                case "leftLeg" -> applyPart(model.leftLeg, rotation, position, Pivot.LEFT_LEG);
+                case "head" -> applyPart(model.head, rotation, position, scale, Pivot.HEAD);
+                case "torso" -> applyPart(model.body, rotation, position, scale, Pivot.TORSO);
+                case "rightArm" -> applyPart(model.rightArm, rotation, position, scale, Pivot.RIGHT_ARM);
+                case "leftArm" -> applyPart(model.leftArm, rotation, position, scale, Pivot.LEFT_ARM);
+                case "rightLeg" -> applyPart(model.rightLeg, rotation, position, scale, Pivot.RIGHT_LEG);
+                case "leftLeg" -> applyPart(model.leftLeg, rotation, position, scale, Pivot.LEFT_LEG);
                 // PAL treats `body` as a renderer-level transform, distinct from
                 // PlayerModel's `torso` part.
                 case "body" -> bodyTransform = bodyTransform(rotation, position);
@@ -244,24 +245,32 @@ public final class BedrockAnimationPlayer {
         return time;
     }
 
-    private static void applyPart(ModelPart part, Vec3 rotation, Vec3 position, Pivot pivot) {
-        // GeckoLibSerializer calls fullyEnableParts: a bone with any animation channel
-        // also resets the other channels to their canonical PlayerModel defaults.
-        Vec3 rot = rotation == null ? Vec3.ZERO : rotation;
-        float xRot = rot.x * DEG_TO_RAD;
-        float yRot = rot.y * DEG_TO_RAD;
-        float zRot = rot.z * DEG_TO_RAD;
-        part.xRot = xRot;
-        part.yRot = yRot;
-        part.zRot = zRot;
+    private static void applyPart(ModelPart part, Vec3 rotation, Vec3 position, Vec3 scale, Pivot pivot) {
+        // Only channels present in the clip replace the vanilla pose. PAL's GeckoLibSerializer
+        // calls fullyEnableParts()/optimizeEmote() *before* keyframeSerializer adds any
+        // keyframes, so no axis is enabled yet and both calls are no-ops; a channel without
+        // keyframes stays disabled and PAL returns the incoming vanilla value. This keeps the
+        // head following the look direction in clips that only move it (feral forms, most
+        // walk/idle clips).
+        if (rotation != null) {
+            part.xRot = rotation.x * DEG_TO_RAD;
+            part.yRot = rotation.y * DEG_TO_RAD;
+            part.zRot = rotation.z * DEG_TO_RAD;
+        }
 
-        Vec3 pos = position == null ? Vec3.ZERO : position;
-        // PAL's Gecko parser stores normal limb position as (x, -y, z) plus the
-        // default pivot. This is why raw JSON position must never directly replace a
-        // GeoBone position.
-        part.x = pivot.x + pos.x;
-        part.y = pivot.y - pos.y;
-        part.z = pivot.z + pos.z;
+        if (position != null) {
+            // PAL's Gecko parser stores normal limb position as (x, -y, z) plus the
+            // default pivot. This is why raw JSON position must never directly replace a
+            // GeoBone position.
+            part.x = pivot.x + position.x;
+            part.y = pivot.y - position.y;
+            part.z = pivot.z + position.z;
+        }
+        if (scale != null) {
+            part.xScale = scale.x;
+            part.yScale = scale.y;
+            part.zScale = scale.z;
+        }
     }
 
     private static void resetPart(ModelPart part, Pivot pivot) {
@@ -271,6 +280,7 @@ public final class BedrockAnimationPlayer {
         part.xRot = 0.0F;
         part.yRot = 0.0F;
         part.zRot = 0.0F;
+        part.xScale = part.yScale = part.zScale = 1.0F;
     }
 
     private static BodyTransform bodyTransform(Vec3 rotation, Vec3 position) {

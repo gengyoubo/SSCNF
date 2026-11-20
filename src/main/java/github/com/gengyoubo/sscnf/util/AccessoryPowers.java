@@ -31,12 +31,21 @@ public final class AccessoryPowers {
         var effective = new LinkedHashSet<>(base);
         var additions = new LinkedHashSet<ResourceLocation>();
         var removals = new LinkedHashSet<ResourceLocation>();
+        // Accessory data may use form IDs or Fabric's form_-prefixed Origin IDs;
+        // cosmetic variants (sub-forms) inherit their master's rules.
+        var formKeys = new LinkedHashSet<ResourceLocation>();
+        for (ResourceLocation lineageForm : github.com.gengyoubo.sscnf.form.FormRegistry.lineage(form)) {
+            formKeys.add(lineageForm);
+            formKeys.add(ResourceLocation.fromNamespaceAndPath(lineageForm.getNamespace(), "form_" + lineageForm.getPath()));
+        }
         for (var item : accessories) {
             var data = DATA.get(item);
             if (data == null) continue;
             additions.addAll(data.powers()); additions.addAll(data.allForms().add()); removals.addAll(data.allForms().remove());
-            var changes = data.forms().get(form);
-            if (changes != null) { additions.addAll(changes.add()); removals.addAll(changes.remove()); }
+            for (ResourceLocation formKey : formKeys) {
+                var changes = data.forms().get(formKey);
+                if (changes != null) { additions.addAll(changes.add()); removals.addAll(changes.remove()); }
+            }
         }
         effective.removeAll(removals); effective.addAll(additions); return List.copyOf(effective);
     }
