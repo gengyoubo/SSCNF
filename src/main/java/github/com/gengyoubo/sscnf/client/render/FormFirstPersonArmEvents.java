@@ -92,17 +92,22 @@ public final class FormFirstPersonArmEvents {
 
         // Mirrors processAnimationFirstPerson: reset the bone to its initial state,
         // then copy the vanilla first-person arm part pose onto it.
-        PlayerModel<AbstractClientPlayer> rendererModel = playerRenderer.getModel();
-        ModelPart armPart = right ? rendererModel.rightArm : rendererModel.leftArm;
+        //
+        // NeoForge posts RenderArmEvent from renderRightHand/renderLeftHand *before* vanilla's
+        // renderHand runs setupAnim(0...) and zeroes xRot, so the shared PlayerModel still holds
+        // whatever pose the last world/inventory render (or a form clip, e.g. Avali's wing
+        // spread) left on it. Fabric read the part after that reset; use the same reset pose:
+        // HumanoidModel#setupAnim with zero inputs plus bobModelPart(age 0), then xRot = 0.
+        FirstPersonArmPose armPart = FirstPersonArmPose.vanilla(right);
         FormGeoModel.resetToInitial(geoBone);
-        geoBone.setPosX(geoBone.getPosX() + (-armPart.x));
-        geoBone.setPosY(geoBone.getPosY() + (-armPart.y));
-        geoBone.setPosZ(geoBone.getPosZ() + (-armPart.z));
+        geoBone.setPosX(geoBone.getPosX() + (-armPart.x()));
+        geoBone.setPosY(geoBone.getPosY() + (-armPart.y()));
+        geoBone.setPosZ(geoBone.getPosZ() + (-armPart.z()));
         geoBone.setPosX(geoBone.getPosX() + (right ? -5.0F : 5.0F));
         geoBone.setPosY(geoBone.getPosY() + 2.0F);
-        geoBone.setRotX(armPart.xRot);
-        geoBone.setRotY(armPart.yRot);
-        geoBone.setRotZ(armPart.zRot);
+        geoBone.setRotX(armPart.xRot());
+        geoBone.setRotY(armPart.yRot());
+        geoBone.setRotZ(armPart.zRot());
         geoBone.setRotY(-geoBone.getRotY());
         geoBone.setRotZ(-geoBone.getRotZ());
 
@@ -138,6 +143,14 @@ public final class FormFirstPersonArmEvents {
             // A first-person arm must never break hand rendering.
         } finally {
             poseStack.popPose();
+        }
+    }
+
+    /** The arm part pose vanilla renderHand draws an empty first-person hand with. */
+    private record FirstPersonArmPose(float x, float y, float z, float xRot, float yRot, float zRot) {
+        static FirstPersonArmPose vanilla(boolean right) {
+            // setupAnim: x = -/+5, y = 2, z = 0, rotations 0; bobModelPart(age 0) adds zRot +/-0.1.
+            return new FirstPersonArmPose(right ? -5.0F : 5.0F, 2.0F, 0.0F, 0.0F, 0.0F, right ? 0.1F : -0.1F);
         }
     }
 
